@@ -174,7 +174,8 @@ const FORMS = {
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
     { k: 'concepto', l: 'Concepto', t: 'text', req: 1, ph: 'Pago de la semana, venta, proyecto…' },
     { k: 'fuente', l: 'Fuente', t: 'select', opts: FUENTES },
-    num('monto', 'Monto', { req: 1 }), notas, ADJ] },
+    num('monto', 'Monto', { req: 1 }), notas, ADJ],
+    pasos: [{ t: 'El ingreso', k: ['fecha', 'concepto', 'fuente', 'monto'] }, { t: 'Notas y evidencia', k: ['notas', '_adjuntos'] }] },
   gastos: { nuevo: 'Nuevo gasto', fields: [
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
     { k: 'concepto', l: 'Concepto', t: 'text', req: 1, ph: 'Tacos, Uber, súper, luz…' },
@@ -184,7 +185,10 @@ const FORMS = {
     GRUPO,
     { k: 'pagado_por', l: '¿Quién lo pagó?', t: 'pagador' },
     { k: 'participantes', l: 'Dividir en partes iguales entre', t: 'participantes' },
-    notas, ADJ] },
+    notas, ADJ],
+    pasos: [{ t: '¿Qué gastaste?', k: ['fecha', 'concepto', 'categoria', 'metodo', 'monto'] },
+      { t: '¿Se comparte?', k: ['grupo_id', 'pagado_por', 'participantes'], soloConGrupos: true },
+      { t: 'Notas y evidencia', k: ['notas', '_adjuntos'] }] },
   deudas: { nuevo: 'Nueva deuda', fields: [
     { k: 'acreedor', l: '¿Con quién?', t: 'text', req: 1, ph: 'Mercado Pago, Nu, Didi, Kueski, Coppel…' },
     { k: 'tipo', l: 'Tipo', t: 'select', opts: TIPOS_DEUDA },
@@ -194,7 +198,10 @@ const FORMS = {
     { k: 'frecuencia', l: 'Cada cuándo pagas', t: 'select', opts: ['semanal', 'quincenal', 'mensual'], def: 'mensual' },
     { k: 'proximo_pago', l: 'Próxima fecha de pago', t: 'date', req: 1, def: today },
     num('tasa_anual', 'Tasa anual o CAT (%)', { step: '0.1', max: 5000, ph: 'Viene en tu contrato o en la app' }),
-    notas, { ...ADJ, l: 'Contrato o estado de cuenta (opcional)' }] },
+    notas, { ...ADJ, l: 'Contrato o estado de cuenta (opcional)' }],
+    pasos: [{ t: '¿A quién le debes?', k: ['acreedor', 'tipo', 'saldo', 'monto_original'] },
+      { t: '¿Cómo la pagas?', k: ['pago_minimo', 'frecuencia', 'proximo_pago', 'tasa_anual'] },
+      { t: 'Documentos', k: ['notas', '_adjuntos'] }] },
   recurrentes: { nuevo: 'Nuevo gasto fijo', fields: [
     { k: 'nombre', l: 'Nombre', t: 'text', req: 1, ph: 'Renta, internet, Netflix, gimnasio, plan de celular…' },
     num('monto', 'Monto total', { req: 1 }),
@@ -202,7 +209,9 @@ const FORMS = {
     { k: 'proximo_cobro', l: 'Próximo cobro', t: 'date', req: 1, def: today },
     { k: 'categoria', l: 'Categoría', t: 'select', opts: CATEGORIAS, def: 'Suscripciones' },
     { ...GRUPO, l: 'Compartir con (se divide entre todos)' },
-    { k: 'en_uso', l: 'Sí lo uso / sí lo necesito', t: 'check', def: true }, notas] },
+    { k: 'en_uso', l: 'Sí lo uso / sí lo necesito', t: 'check', def: true }, notas],
+    pasos: [{ t: '¿Qué pagas?', k: ['nombre', 'monto', 'frecuencia', 'proximo_cobro'] },
+      { t: 'Detalles', k: ['categoria', 'grupo_id', 'en_uso', 'notas'] }] },
   metas: { nuevo: 'Nueva meta', fields: [
     { k: 'nombre', l: 'Meta', t: 'text', req: 1, ph: 'Fondo de emergencia, moto, viaje, sala del depa…' },
     num('objetivo', '¿Cuánto necesitas?', { req: 1 }),
@@ -219,13 +228,16 @@ const FORMS = {
     { k: 'tipo', l: 'Tipo', t: 'select', opts: ['Recordatorio', 'Pago', 'Cobro', 'Otro'] },
     num('monto', 'Monto (opcional)'),
     { k: 'repetir', l: 'Se repite', t: 'select', opts: REPETIR },
-    { ...GRUPO, l: 'Mostrar también en el calendario de' }, notas, ADJ] },
+    { ...GRUPO, l: 'Mostrar también en el calendario de' }, notas, ADJ],
+    pasos: [{ t: '¿Qué y cuándo?', k: ['titulo', 'fecha', 'hora', 'tipo', 'monto'] },
+      { t: 'Repetir y compartir', k: ['repetir', 'grupo_id', 'notas', '_adjuntos'] }] },
   liquidaciones: { nuevo: 'Pago entre compañeros', fields: [
     { k: 'de', l: '¿Quién pagó?', t: 'miembro' },
     { k: 'para', l: '¿A quién le pagó?', t: 'miembro' },
     num('monto', 'Monto', { req: 1 }),
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
-    notas, { ...ADJ, l: 'Comprobante de transferencia (opcional)' }] },
+    notas, { ...ADJ, l: 'Comprobante de transferencia (opcional)' }],
+    pasos: [{ t: 'El pago', k: ['de', 'para', 'monto', 'fecha'] }, { t: 'Comprobante', k: ['notas', '_adjuntos'] }] },
   abono: { nuevo: 'Registrar abono', fields: [
     num('monto', 'Monto del abono', { req: 1 }),
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
@@ -241,9 +253,28 @@ const FORMS = {
   alias: { nuevo: 'Tu nombre en el grupo', fields: [{ k: 'alias', l: 'Nombre', t: 'text', req: 1 }] }
 };
 
-/* ---------- Modal de formularios ---------- */
+/* ---------- Ventanas (SweetAlert2) ---------- */
+const clasesSwal = (extra = {}) => ({
+  popup: 'swal-app', title: 'swal-titulo', htmlContainer: 'swal-cuerpo', actions: 'swal-acciones',
+  confirmButton: 'btn primary', denyButton: 'btn ghost', cancelButton: 'btn ghost',
+  validationMessage: 'swal-error', image: 'swal-imagen', ...extra
+});
+const SWAL = Swal.mixin({
+  heightAuto: false, buttonsStyling: false, reverseButtons: true, returnFocus: false,
+  customClass: clasesSwal(), cancelButtonText: 'Cancelar'
+});
+// Confirmación con SweetAlert2 (reemplaza al confirm() del navegador)
+async function confirmar({ titulo, texto = '', ok = 'Sí, continuar', peligro = false, icono = 'warning' }) {
+  const r = await SWAL.fire({
+    icon: icono, title: titulo, text: texto, showCancelButton: true, confirmButtonText: ok, focusCancel: peligro,
+    customClass: clasesSwal({ confirmButton: peligro ? 'btn primary peligro' : 'btn primary' })
+  });
+  return r.isConfirmed;
+}
+
+/* ---------- Formularios (con wizard por pasos cuando son largos) ---------- */
 let ctx = null;
-const form = $('#modal-form');
+const fm = () => document.getElementById('swal-form');
 function campo(f, v) {
   const req = f.req ? 'required' : '';
   switch (f.t) {
@@ -265,12 +296,14 @@ function campo(f, v) {
     default: {
       const extra = f.t === 'number' ? `step="${f.step || '0.01'}" min="0" ${f.max ? `max="${f.max}"` : ''} inputmode="decimal"` : '';
       const val = f.t === 'time' && v ? String(v).slice(0, 5) : v;
-      return `<label>${f.l}<input type="${f.t}" name="${f.k}" value="${esc(val ?? '')}" ${req} ${extra} placeholder="${esc(f.ph || '')}"></label>`;
+      const largo = f.t === 'text' ? `maxlength="${f.k === 'notas' ? 1000 : 120}"` : '';
+      return `<label>${f.l}<input type="${f.t}" name="${f.k}" value="${esc(val ?? '')}" ${req} ${extra} ${largo} placeholder="${esc(f.ph || '')}"></label>`;
     }
   }
 }
-const grupoDelForm = () => form.elements.grupo_id?.value || ctx?.pre?.grupo_id || ctx?.row?.grupo_id || '';
+const grupoDelForm = () => fm()?.elements.grupo_id?.value || ctx?.pre?.grupo_id || ctx?.row?.grupo_id || '';
 function actualizarGrupoCampos(reset = false) {
+  const form = fm(); if (!form) return;
   const gid = grupoDelForm(), ms = gid ? miembrosDe(gid) : [];
   form.querySelectorAll('[data-solo-grupo]').forEach(el => { el.hidden = !gid; });
   form.querySelectorAll('select[name=pagado_por], select[data-miembro]').forEach(sel => {
@@ -289,14 +322,14 @@ function actualizarGrupoCampos(reset = false) {
   }
 }
 function actualizarParte() {
-  const el = form.querySelector('[data-parte]'); if (!el) return;
+  const form = fm(), el = form?.querySelector('[data-parte]'); if (!el) return;
   const n = form.querySelectorAll('.chips-field input:checked').length, total = Number(form.elements.monto?.value) || 0;
   el.textContent = n && total ? `Cada quien: ${money(total / n)}` : '';
 }
 function pintarAdjuntos(cont, lista, borrable) {
   cont.innerHTML = lista.map(a => `<div class="thumb">
     <button type="button" data-act="ver-adj" data-id="${a.id}" title="${esc(a.nombre || 'Evidencia')}">${a.tipo_mime === 'application/pdf' ? '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>' : `<img data-adj="${a.id}" alt="${esc(a.nombre || 'evidencia')}">`}</button>
-    ${borrable && esMio(a) ? `<button type="button" class="x" data-act="borrar-adj" data-id="${a.id}" aria-label="Quitar evidencia"><i class="bi bi-x-lg" aria-hidden="true"></i></button>` : ''}</div>`).join('');
+    ${borrable && esMio(a) ? `<button type="button" class="x" data-act="borrar-adj" data-id="${a.id}" aria-label="Quitar evidencia" title="Quitar"><i class="bi bi-x-lg" aria-hidden="true"></i></button>` : ''}</div>`).join('');
   hidratar(cont);
 }
 function hidratar(root) {
@@ -305,34 +338,9 @@ function hidratar(root) {
     if (a) storage.url(a.ruta).then(u => { if (u) img.src = u; });
   });
 }
-function abrirForm(tipo, row = null, extra = {}) {
-  const def = FORMS[tipo];
-  ctx = { tipo, row, pre: {}, ...extra };
-  const ro = !!row && !puedeEditar(tipo, row);
-  $('#modal-title').textContent = extra.titulo || (ro ? 'Detalle' : row ? def.nuevo.replace(/^(Nuev[oa]|Crear|Registrar) /, 'Editar ') : def.nuevo);
-  let html = def.fields.map(f => campo(f, row ? row[f.k] : (ctx.pre[f.k] ?? (typeof f.def === 'function' ? f.def() : f.def)))).join('');
-  if (row && (row.grupo_id || !esMio(row))) html += `<p class="small muted nota-grupo">Registrado por ${esc(aliasDe(row.user_id, row.grupo_id))}${row.grupo_id ? ` · compartido en ${esc(nombreGrupo(row.grupo_id))}` : ''}${tipo === 'gastos' && row.grupo_id ? ` · tu parte: <b>${money(miParte(row))}</b>` : ''}.${ro ? ' Solo esa persona puede modificarlo.' : ''}</p>`;
-  $('#modal-body').innerHTML = html;
-  actualizarGrupoCampos();
-  const ex = $('#adj-exist'); if (ex && row) pintarAdjuntos(ex, adjuntosDe(tipo, row.id), !ro);
-  form.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = ro; });
-  form.querySelector('.file-btn')?.toggleAttribute('hidden', ro);
-  $('#modal-save').hidden = ro;
-  $('#modal-delete').hidden = !row || !esMio(row) || !!def.sinBorrar;
-  $('#modal').showModal();
-  if (!ro) setTimeout(() => $('#modal-body input:not([type=date]):not([type=checkbox]):not([type=hidden]), #modal-body select')?.focus(), 50);
-}
-form.addEventListener('change', e => {
-  if (e.target.name === 'grupo_id') actualizarGrupoCampos(true);
-  if (e.target.closest('.chips-field')) actualizarParte();
-  if (e.target.name === '_adjuntos') {
-    $('#adj-nuevos').innerHTML = [...e.target.files].map(f => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>'}</div>`).join('');
-  }
-});
-form.addEventListener('input', e => { if (e.target.name === 'monto') actualizarParte(); });
-form.addEventListener('submit', async e => {
-  e.preventDefault();
-  const def = FORMS[ctx.tipo], obj = {};
+// Lee los valores del formulario abierto
+function recolectar(def) {
+  const form = fm(), obj = {};
   def.fields.forEach(f => {
     if (['files', 'pagador', 'participantes'].includes(f.t)) return;
     const el = form.elements[f.k]; if (!el) return;
@@ -345,41 +353,131 @@ form.addEventListener('submit', async e => {
     const ch = [...form.querySelectorAll('.chips-field input:checked')].map(i => i.value);
     obj.participantes = gid ? (ch.length ? ch : miembrosDe(gid).map(m => m.user_id)) : null;
   }
-  if (ctx.tipo === 'liquidaciones') {
-    if (obj.de === obj.para) return toast('Elige dos personas distintas');
-    if (!DEMO && obj.de !== ME && obj.para !== ME) return toast('Solo puedes registrar pagos donde tú pagas o recibes');
+  return obj;
+}
+async function guardar(c, obj, files) {
+  let ref = null;
+  if (c.custom) ref = await c.custom(obj);
+  else if (c.row) {
+    await db.update(c.tipo, c.row.id, obj);
+    const g = 'grupo_id' in obj ? obj.grupo_id : (c.row.grupo_id || null);
+    ref = { tabla: c.tipo, id: c.row.id, grupo_id: g };
+    if ('grupo_id' in obj && (c.row.grupo_id || null) !== g)   // las evidencias siguen al registro
+      for (const a of adjuntosDe(c.tipo, c.row.id).filter(esMio)) await db.update('adjuntos', a.id, { grupo_id: g });
+  } else {
+    const r = await db.insert(c.tipo, { ...c.pre, ...obj });
+    ref = { tabla: c.tipo, id: r.id, grupo_id: r.grupo_id || null };
   }
-  const files = [...(form.elements._adjuntos?.files || [])];
-  const btn = $('#modal-save'); btn.disabled = true;
-  try {
-    let ref = null;
-    if (ctx.custom) ref = await ctx.custom(obj);
-    else if (ctx.row) {
-      await db.update(ctx.tipo, ctx.row.id, obj);
-      const g = 'grupo_id' in obj ? obj.grupo_id : (ctx.row.grupo_id || null);
-      ref = { tabla: ctx.tipo, id: ctx.row.id, grupo_id: g };
-      // si cambió con quién se comparte, las evidencias se mueven con el registro
-      if ('grupo_id' in obj && (ctx.row.grupo_id || null) !== g)
-        for (const a of adjuntosDe(ctx.tipo, ctx.row.id).filter(esMio)) await db.update('adjuntos', a.id, { grupo_id: g });
-    } else {
-      const r = await db.insert(ctx.tipo, { ...ctx.pre, ...obj });
-      ref = { tabla: ctx.tipo, id: r.id, grupo_id: r.grupo_id || null };
-    }
-    if (files.length && ref) { toast('Subiendo evidencia…', 8000); await subirAdjuntos(ref, files); }
-    $('#modal').close(); await refrescar(); toast('Guardado');
-  } catch (err) { toast('Error: ' + (err.message || err), 5000); }
-  finally { btn.disabled = false; }
-});
+  if (files.length && ref) await subirAdjuntos(ref, files);
+}
 async function eliminarRegistro(t, row) {
   for (const a of adjuntosDe(t, row.id).filter(esMio)) await borrarAdjunto(a);
   await db.remove(t, row.id);
 }
-$('#modal-delete').addEventListener('click', async () => {
-  if (!ctx?.row || !confirm('¿Eliminar este registro y sus evidencias?')) return;
-  try { await eliminarRegistro(ctx.tipo, ctx.row); $('#modal').close(); await refrescar(); toast('Eliminado'); }
-  catch (err) { toast('Error: ' + err.message); }
-});
-document.addEventListener('click', e => { if (e.target.closest('[data-close]')) e.target.closest('dialog')?.close(); });
+
+function abrirForm(tipo, row = null, extra = {}) {
+  const def = FORMS[tipo];
+  const c = { pre: {}, ...extra, tipo, row };
+  ctx = c;
+  const ro = !!row && !puedeEditar(tipo, row);
+  const valor = f => (c.draft && f.k in c.draft) ? c.draft[f.k] : row ? row[f.k] : (c.pre[f.k] ?? (typeof f.def === 'function' ? f.def() : f.def));
+  const titulo = extra.titulo || (ro ? 'Detalle' : row ? def.nuevo.replace(/^(Nuev[oa]|Crear|Registrar) /, 'Editar ') : def.nuevo);
+
+  // Pasos: todos los campos van en algún panel; los pasos que no aplican quedan ocultos
+  const definidos = (!ro && def.pasos) ? def.pasos : [{ t: null, k: def.fields.map(f => f.k) }];
+  const usados = new Set(definidos.flatMap(p => p.k));
+  const sobrantes = def.fields.map(f => f.k).filter(k => !usados.has(k));
+  const pasos = definidos.map((p, i) => ({ ...p, k: i === definidos.length - 1 ? [...p.k, ...sobrantes] : p.k,
+    visible: !(p.soloConGrupos && !misGrupos().length) }));
+  const visibles = pasos.map((p, i) => (p.visible ? i : -1)).filter(i => i >= 0);
+  const total = visibles.length;
+  const campoHtml = k => { const f = def.fields.find(x => x.k === k); return f ? campo(f, valor(f)) : ''; };
+  const stepper = total > 1 ? `<ol class="wizard-pasos" aria-label="Pasos">${visibles.map((i, n) => `<li data-paso="${n}"><span>${n + 1}</span><em>${esc(pasos[i].t)}</em></li>`).join('')}</ol>` : '';
+  const paneles = pasos.map((p, i) => `<section class="wizard-panel grid gap-3" data-panel="${i}" ${p.visible ? '' : 'hidden'}>${p.k.map(campoHtml).join('')}</section>`).join('');
+  const nota = row && (row.grupo_id || !esMio(row)) ? `<p class="small muted nota-grupo"><i class="bi bi-info-circle" aria-hidden="true"></i> Registrado por ${esc(aliasDe(row.user_id, row.grupo_id))}${row.grupo_id ? ` · compartido en ${esc(nombreGrupo(row.grupo_id))}` : ''}${tipo === 'gastos' && row.grupo_id ? ` · tu parte: <b>${money(miParte(row))}</b>` : ''}.${ro ? ' Solo esa persona puede modificarlo.' : ''}</p>` : '';
+  const borrar = row && !ro && esMio(row) && !def.sinBorrar ? `<button type="button" class="link-btn text-bad justify-self-start no-underline" data-act="eliminar-registro"><i class="bi bi-trash3" aria-hidden="true"></i> Eliminar este registro</button>` : '';
+  const html = `<form id="swal-form" class="grid gap-3 text-left" novalidate>${stepper}${paneles}${nota}${borrar}</form>`;
+
+  let paso = 0;
+  const mostrarPaso = n => {
+    paso = n;
+    const form = fm();
+    pasos.forEach((p, i) => { const el = form.querySelector(`[data-panel="${i}"]`); el.hidden = total > 1 ? i !== visibles[n] : !p.visible; });
+    form.querySelectorAll('.wizard-pasos li').forEach((li, i) => { li.classList.toggle('activo', i === n); li.classList.toggle('hecho', i < n); });
+    const deny = Swal.getDenyButton(), conf = Swal.getConfirmButton();
+    if (deny) deny.style.display = n > 0 ? '' : 'none';
+    if (conf) conf.innerHTML = n < total - 1 ? 'Siguiente <i class="bi bi-arrow-right" aria-hidden="true"></i>' : '<i class="bi bi-check2" aria-hidden="true"></i> Guardar';
+    Swal.resetValidationMessage();
+    if (!ro) setTimeout(() => form.querySelector(`[data-panel="${visibles[n]}"] input:not([type=date]):not([type=checkbox]):not([type=hidden]):not([type=file]), [data-panel="${visibles[n]}"] select`)?.focus(), 30);
+  };
+  const validarPaso = () => {
+    const panel = fm().querySelector(`[data-panel="${visibles[paso]}"]`);
+    for (const el of panel.querySelectorAll('input, select, textarea')) {
+      if (el.closest('[hidden]') || el.type === 'hidden') continue;
+      if (!el.checkValidity()) {
+        const etiqueta = (el.closest('label')?.childNodes[0]?.textContent || 'Campo').trim();
+        Swal.showValidationMessage(`${etiqueta}: ${el.validationMessage}`);
+        el.focus();
+        return false;
+      }
+    }
+    return true;
+  };
+
+  return SWAL.fire({
+    title: titulo, html, width: 560,
+    showConfirmButton: !ro, showDenyButton: total > 1, denyButtonText: '<i class="bi bi-arrow-left" aria-hidden="true"></i> Atrás',
+    showCancelButton: true, cancelButtonText: ro ? 'Cerrar' : 'Cancelar',
+    focusConfirm: false, allowEnterKey: false,
+    allowOutsideClick: () => !Swal.isLoading(),
+    didOpen: () => {
+      const form = fm();
+      actualizarGrupoCampos();
+      const ex = form.querySelector('#adj-exist'); if (ex && row) pintarAdjuntos(ex, adjuntosDe(tipo, row.id), !ro);
+      if (ro) { form.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = true; }); form.querySelector('.file-btn')?.setAttribute('hidden', ''); }
+      form.addEventListener('submit', e => { e.preventDefault(); if (!ro) Swal.clickConfirm(); });
+      form.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'file') { e.preventDefault(); if (!ro) Swal.clickConfirm(); } });
+      form.addEventListener('change', e => {
+        if (e.target.name === 'grupo_id') actualizarGrupoCampos(true);
+        if (e.target.closest('.chips-field')) actualizarParte();
+        if (e.target.name === '_adjuntos') form.querySelector('#adj-nuevos').innerHTML = [...e.target.files].map(f => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>'}</div>`).join('');
+      });
+      form.addEventListener('input', e => { if (e.target.name === 'monto') actualizarParte(); });
+      form.querySelector('[data-act="eliminar-registro"]')?.addEventListener('click', async () => {
+        const borrador = recolectar(def);
+        const ok = await confirmar({ titulo: '¿Eliminar este registro?', texto: 'También se borran sus evidencias. No se puede deshacer.', ok: 'Sí, eliminar', peligro: true });
+        if (!ok) return abrirForm(tipo, row, { ...c, draft: borrador });
+        try { await eliminarRegistro(tipo, row); await refrescar(); toast('Eliminado'); }
+        catch (err) { toast('Error: ' + err.message, 5000); }
+      });
+      mostrarPaso(0);
+    },
+    preDeny: () => { if (paso > 0) mostrarPaso(paso - 1); return false; },
+    preConfirm: async () => {
+      if (!validarPaso()) return false;
+      if (paso < total - 1) { mostrarPaso(paso + 1); return false; }
+      const obj = recolectar(def);
+      if (tipo === 'liquidaciones') {
+        if (obj.de === obj.para) { Swal.showValidationMessage('Elige dos personas distintas'); return false; }
+        if (!DEMO && obj.de !== ME && obj.para !== ME) { Swal.showValidationMessage('Solo puedes registrar pagos donde tú pagas o recibes'); return false; }
+      }
+      const files = [...(fm().elements._adjuntos?.files || [])];
+      try { await guardar(c, obj, files); return true; }
+      catch (err) { Swal.showValidationMessage('No se pudo guardar: ' + (err.message || err)); return false; }
+    }
+  }).then(async r => { if (r.isConfirmed) { await refrescar(); toast('Guardado'); } return r; });
+}
+
+/* ---------- Menú rápido del botón + ---------- */
+function menuRapido() {
+  const op = [['gastos', 'arrow-up-circle', 'Gasto', 'neg'], ['ingresos', 'arrow-down-circle', 'Ingreso', 'pos'], ['deudas', 'credit-card-2-front', 'Deuda', ''],
+    ['recurrentes', 'arrow-repeat', 'Gasto fijo', ''], ['metas', 'bullseye', 'Meta', ''], ['presupuestos', 'wallet2', 'Presupuesto', ''], ['eventos', 'calendar-event', 'Evento', '']];
+  SWAL.fire({
+    title: '¿Qué quieres agregar?', showConfirmButton: false, showCancelButton: true, width: 520,
+    html: `<div class="quick-grid">${op.map(([t, i, l, c]) => `<button type="button" class="q ${c}" data-q="${t}"><i class="bi bi-${i}" aria-hidden="true"></i>${l}</button>`).join('')}</div>`,
+    didOpen: popup => popup.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => abrirForm(b.dataset.q)))
+  });
+}
 
 /* ---------- Visor de evidencias ---------- */
 async function verAdjunto(a) {
@@ -390,17 +488,28 @@ async function verAdjunto(a) {
     else window.open(url, '_blank', 'noopener');
     return;
   }
-  $('#visor-img').src = url; $('#visor-img').alt = a.nombre || 'Evidencia';
-  $('#visor-info').textContent = `${a.nombre || 'Evidencia'} · subida por ${aliasDe(a.user_id, a.grupo_id)} · ${fLarga(a.created_at)}`;
-  $('#visor-abrir').href = DEMO ? '#' : url; $('#visor-abrir').hidden = DEMO;
-  $('#visor').showModal();
+  // Si se abrió desde un formulario, al cerrar el visor regresamos al formulario sin perder lo escrito
+  const volver = Swal.isVisible() && fm() && ctx ? { c: ctx, draft: recolectar(FORMS[ctx.tipo]) } : null;
+  const r = await SWAL.fire({
+    title: a.nombre || 'Evidencia', text: `Subida por ${aliasDe(a.user_id, a.grupo_id)} · ${fLarga(a.created_at)}`,
+    imageUrl: url, imageAlt: a.nombre || 'Evidencia', width: 900,
+    showConfirmButton: !DEMO, confirmButtonText: '<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Abrir original',
+    showCancelButton: true, cancelButtonText: volver ? '<i class="bi bi-arrow-left" aria-hidden="true"></i> Volver' : 'Cerrar'
+  });
+  if (r.isConfirmed) window.open(url, '_blank', 'noopener');
+  if (volver) abrirForm(volver.c.tipo, volver.c.row, { ...volver.c, draft: volver.draft });
 }
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-act="ver-adj"],[data-act="borrar-adj"]'); if (!b) return;
   e.preventDefault(); e.stopPropagation();
   const a = R.adjuntos.find(x => x.id === b.dataset.id); if (!a) return;
   if (b.dataset.act === 'ver-adj') return verAdjunto(a);
-  if (!confirm('¿Quitar esta evidencia?')) return;
+  // Quitar dentro del formulario: se confirma con un segundo toque (no cierra el formulario)
+  if (!b.classList.contains('confirmar')) {
+    b.classList.add('confirmar'); b.innerHTML = '<i class="bi bi-trash3" aria-hidden="true"></i>'; b.title = 'Toca otra vez para quitar';
+    setTimeout(() => { if (b.isConnected) { b.classList.remove('confirmar'); b.innerHTML = '<i class="bi bi-x-lg" aria-hidden="true"></i>'; b.title = 'Quitar'; } }, 2500);
+    return;
+  }
   try { await borrarAdjunto(a); b.closest('.thumb')?.remove(); toast('Evidencia eliminada'); } catch (err) { toast('Error: ' + err.message); }
 }, true);
 
@@ -1055,7 +1164,10 @@ $('#view').addEventListener('click', async e => {
       case 'salir-grupo': {
         const g = R.grupos.find(x => x.id === grupoSel), yo = miembrosDe(grupoSel).find(m => m.user_id === ME);
         const soloYo = miembrosDe(grupoSel).filter(m => m.user_id !== DEMO_COMPA).length <= 1;
-        if (!confirm(soloYo ? `Eres el único miembro: se eliminará "${g.nombre}". ¿Continuar?` : `¿Salir de "${g.nombre}"? Dejarás de ver lo compartido ahí; lo que tú registraste seguirá visible para el grupo.`)) break;
+        const ok = await confirmar(soloYo
+          ? { titulo: `¿Eliminar "${g.nombre}"?`, texto: 'Eres el único miembro, así que el grupo se elimina.', ok: 'Sí, eliminar', peligro: true }
+          : { titulo: `¿Salir de "${g.nombre}"?`, texto: 'Dejarás de ver lo compartido ahí. Lo que tú registraste seguirá visible para el grupo.', ok: 'Sí, salir', peligro: true });
+        if (!ok) break;
         if (soloYo && esMio({ user_id: g.creado_por })) await db.remove('grupos', g.id);
         else await db.remove('miembros', yo.id);
         if (DEMO && soloYo) {   // en demo no hay base de datos que limpie: lo hacemos aquí
@@ -1084,13 +1196,12 @@ $('#fab').addEventListener('click', () => {
   if (tab === 'grupo') return misGrupos().length ? abrirForm('gastos', null, { pre: { grupo_id: grupoSel } }) : $('#view [data-act="crear-grupo"]')?.click();
   if (tab === 'agenda') return abrirForm('eventos', null, { pre: { fecha: agSel ? `${agY}-${pad(agM + 1)}-${pad(agSel)}` : today() } });
   const directo = { movimientos: movTipo, deudas: 'deudas', fijos: 'recurrentes', metas: 'metas' }[tab];
-  directo ? abrirForm(directo) : $('#quick').showModal();
+  directo ? abrirForm(directo) : menuRapido();
 });
-$('#quick').addEventListener('click', e => { const q = e.target.closest('[data-q]'); if (q) { $('#quick').close(); abrirForm(q.dataset.q); } });
 
 /* ---------- Datos de ejemplo (solo modo demo) ---------- */
 async function cargarEjemplo() {
-  if (!confirm('Esto agrega datos ficticios (incluido un grupo con un roomie de prueba) para que veas cómo funciona. ¿Continuar?')) return;
+  if (!await confirmar({ titulo: '¿Cargar datos de ejemplo?', texto: 'Se agregan datos ficticios, incluido un grupo con un roomie de prueba, para que veas cómo funciona.', ok: 'Sí, cargar', icono: 'question' })) return;
   const h = hoyD(), f = n => iso(addDays(h, -n)), fut = n => iso(addDays(h, n));
   for (let s = 0; s < 10; s++) await db.insert('ingresos', { fecha: f(s * 7 + 1), concepto: 'Pago semanal', fuente: 'Sueldo', monto: 3800 + (s % 3) * 250 });
   await db.insert('ingresos', { fecha: f(9), concepto: 'Venta de bocina', fuente: 'Ventas', monto: 900 });
@@ -1257,14 +1368,19 @@ async function boot() {
   usuario ? mostrarApp() : mostrarLogin();
   sb.auth.onAuthStateChange((ev, s) => {
     if (ev === 'PASSWORD_RECOVERY') setTimeout(async () => {
-      const nueva = prompt('Escribe tu nueva contraseña (mínimo 6 caracteres):');
+      const { value: nueva } = await SWAL.fire({
+        icon: 'info', title: 'Elige tu nueva contraseña', input: 'password', inputLabel: 'Mínimo 8 caracteres',
+        inputAttributes: { autocomplete: 'new-password', maxlength: '72' }, showCancelButton: true, confirmButtonText: 'Guardar contraseña',
+        customClass: clasesSwal({ input: 'swal-input' }),
+        inputValidator: v => (!v || v.length < 8) ? 'Usa al menos 8 caracteres' : undefined
+      });
       if (nueva) { const { error } = await sb.auth.updateUser({ password: nueva }); toast(error ? error.message : 'Contraseña actualizada'); }
     }, 0);
     if (ev === 'SIGNED_IN' && !usuario) { usuario = s.user; setTimeout(mostrarApp, 0); }
     if (ev === 'SIGNED_OUT') { usuario = null; ME = null; TABLAS.forEach(t => (R[t] = [])); urlCache.clear(); mostrarLogin(); }
   });
   // Al volver a la app, trae lo que hayan registrado tus compañeros
-  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && usuario && !$('#modal').open) refrescar(); });
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && usuario && !Swal.isVisible()) refrescar(); });
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => !$('#app').hidden && render());
 boot();

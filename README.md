@@ -87,6 +87,14 @@ Si alguien sale del grupo deja de ver lo compartido. Lo que esa persona registr�
 
 **Recomendado en el panel de Supabase** (Authentication → Sign In / Providers → Email): deja activado *Confirm email* y sube *Minimum password length* a 8.
 
+## Ventanas y formularios
+Todas las ventanas usan [SweetAlert2](https://sweetalert2.github.io): formularios, confirmaciones, menú rápido, visor de evidencias y cambio de contraseña. Los formularios largos son un **wizard por pasos** con *Siguiente / Atrás*:
+- **Gasto**: qué gastaste → con quién se comparte (solo si tienes grupo) → notas y evidencia
+- **Deuda**: a quién le debes → cómo la pagas → documentos
+- **Ingreso**, **gasto fijo**, **evento** y **pago entre compañeros**: 2 pasos
+
+Cada paso se valida antes de avanzar. En celular los formularios salen desde abajo como hoja.
+
 ## Guía dentro de la app
 La primera vez que entras aparece un recorrido por todas las secciones. Después, el botón **?** (arriba a la derecha) explica la sección donde estés. Usa [Driver.js](https://driverjs.com).
 
@@ -111,7 +119,7 @@ La primera vez que entras aparece un recorrido por todas las secciones. Después
 | `config.js` | Tus llaves de Supabase |
 | `supabase/schema.sql` | Tablas, seguridad entre usuarios y almacenamiento de evidencias |
 | `manifest.json`, `sw.js`, `icon.svg` | Para instalarla como app en el celular |
-| `vendor/` | Supabase JS, Chart.js, Driver.js y Bootstrap Icons (licencias MIT en `LICENSES.txt`) |
+| `vendor/` | Supabase JS, Chart.js, Driver.js, SweetAlert2 y Bootstrap Icons (licencias MIT en `LICENSES.txt`) |
 
 ## Editar el diseño (Tailwind CSS)
 La página usa `css/app.css`, que se genera desde `src/app.css` con Tailwind. Si cambias clases en `index.html` o `app.js`, o estilos en `src/app.css`, recompila:

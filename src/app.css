@@ -63,8 +63,6 @@
   label { @apply block text-sm font-medium text-muted; }
   fieldset { @apply border border-line rounded-[10px] px-3 py-2.5 min-w-0; }
   legend { @apply text-sm text-muted font-medium px-1; }
-  dialog { @apply m-auto p-0 border-0 rounded-2xl bg-surface text-ink shadow-2xl w-[min(520px,calc(100vw-24px))] max-h-[calc(100dvh-24px)]; }
-  dialog::backdrop { background: rgb(10 16 12 / .45); }
   .bi { @apply leading-none; }
 }
 
@@ -194,12 +192,6 @@
   .gcal { @apply inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-line px-2 py-1 text-xs font-bold text-muted no-underline hover:border-brand hover:text-brand; }
 
   /* Formularios */
-  #modal-form { @apply flex flex-col max-h-[calc(100dvh-24px)]; }
-  #modal-form header, #modal-form footer { @apply flex items-center gap-2 px-[18px] py-3.5; }
-  #modal-form header { @apply justify-between border-b border-line; }
-  #modal-form footer { @apply border-t border-line; }
-  .spacer { @apply flex-1; }
-  .form-grid { @apply grid gap-3 overflow-auto px-[18px] py-4; }
   .chips { @apply my-1 flex flex-wrap gap-2; }
   .chip { @apply inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm text-ink cursor-pointer has-[input:checked]:border-brand has-[input:checked]:bg-brand-soft; }
   .chip input { @apply m-0 size-4 min-h-0 accent-brand; }
@@ -234,22 +226,60 @@
   .pago-sug > div { @apply min-w-36 flex-1; }
   .intro { @apply grid max-w-2xl gap-3; }
 
-  /* Visor de evidencias */
-  #visor { @apply w-[min(900px,calc(100vw-16px))]; }
-  #visor img { @apply mx-auto block max-h-[75dvh] max-w-full bg-black object-contain; }
-  .visor-head, .visor-foot { @apply flex items-center justify-between gap-2.5 px-3.5 py-2.5; }
-
   #toast {
-    @apply pointer-events-none fixed left-1/2 z-[100] max-w-[90vw] -translate-x-1/2 translate-y-5 rounded-[10px] bg-ink px-4 py-2.5 text-sm font-semibold text-bg opacity-0 transition duration-300;
+    @apply pointer-events-none fixed left-1/2 z-[2000] max-w-[90vw] -translate-x-1/2 translate-y-5 rounded-[10px] bg-ink px-4 py-2.5 text-sm font-semibold text-bg opacity-0 transition duration-300;
     bottom: calc(var(--nav-h) + 5.5rem);
   }
   #toast.show { @apply translate-y-0 opacity-100; }
   #user-chip { @apply hidden max-w-[40vw] truncate sm:inline-flex; }
 }
 
-/* ---------- Celular: los formularios salen desde abajo ---------- */
+/* ---------- Ventanas SweetAlert2 con los colores de la app ---------- */
+.swal2-container.swal2-backdrop-show { background: rgb(10 16 12 / .5); }
+.swal2-popup.swal-app {
+  --swal2-background: var(--surface); --swal2-color: var(--text);
+  background: var(--surface); color: var(--text); border: 1px solid var(--line);
+  border-radius: 18px; padding: 1.25rem 0; font-family: var(--font-sans);
+  max-width: calc(100vw - 1.5rem);
+}
+.swal-titulo { @apply px-5 pt-1 text-xl font-extrabold text-ink; }
+.swal-cuerpo { @apply mx-0 mt-3 px-5 text-[.95rem] text-muted; max-height: calc(100dvh - 230px); overflow: auto; }
+.swal-cuerpo:has(#swal-form), .swal-cuerpo:has(.quick-grid) { @apply text-left text-ink; }
+.swal-acciones { @apply mt-4 w-full flex-wrap justify-end gap-2 px-5; }
+.swal-acciones .btn { @apply min-w-28; }
+.swal-error { @apply mx-5 mt-3 rounded-[10px] text-sm text-bad; background: color-mix(in srgb, var(--bad) 12%, var(--surface)) !important; }
+.swal-error::before { @apply bg-bad; }
+.swal-imagen { @apply mx-auto max-h-[65dvh] max-w-full rounded-xl bg-black object-contain; }
+.swal2-popup.swal-app .swal2-input { @apply mx-5 w-auto max-w-none rounded-[10px] border-line bg-surface text-ink shadow-none; }
+.swal2-popup.swal-app .swal2-input-label { @apply text-muted; }
+.btn.peligro { @apply bg-bad text-white; }
+
+/* Wizard: indicador de pasos */
+.wizard-pasos { @apply mb-1 flex list-none gap-2 p-0; }
+.wizard-pasos li { @apply relative flex flex-1 flex-col items-center gap-1 text-center text-[.72rem] text-muted; }
+.wizard-pasos li span { @apply z-10 grid size-7 place-items-center rounded-full border-2 border-line bg-surface font-bold; }
+.wizard-pasos li em { @apply font-semibold not-italic leading-tight; }
+.wizard-pasos li:not(:first-child)::before {
+  content: ""; position: absolute; top: 13px; height: 2px; background: var(--line);
+  left: calc(-50% + 18px); right: calc(50% + 18px);
+}
+.wizard-pasos li.activo { @apply text-brand; }
+.wizard-pasos li.activo span { @apply border-brand text-brand; }
+.wizard-pasos li.hecho span { @apply border-brand bg-brand text-brand-ink; }
+.wizard-pasos li.activo::before, .wizard-pasos li.hecho::before { background: var(--brand); }
+.thumb .x.confirmar { @apply bg-bad; }
+
+/* Celular: los formularios salen desde abajo, como hoja */
 @media (width < 40rem) {
-  dialog#modal, dialog#quick { @apply mx-0 mb-0 mt-auto w-screen max-w-none rounded-b-none; }
+  .swal2-container:has(#swal-form) { display: flex; flex-direction: column; justify-content: flex-end; padding: 0; }
+  .swal2-container:has(#swal-form) .swal2-popup.swal-app { margin: 0; }
+  .swal2-container:has(#swal-form) .swal2-popup.swal-app {
+    width: 100% !important; max-width: 100vw; border-radius: 18px 18px 0 0; border-bottom: 0;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom));
+  }
+  .swal-cuerpo { max-height: calc(100dvh - 190px); }
+  .swal-acciones .btn { @apply min-w-0 flex-1; }
+  .wizard-pasos li:not(.activo) em { @apply hidden; }
 }
 
 /* ---------- Escritorio (≥1024px): header arriba, menú lateral, contenido; nada se encima ---------- */
