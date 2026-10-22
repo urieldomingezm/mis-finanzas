@@ -11,7 +11,28 @@ App web (funciona en celular y computadora, se puede instalar como app) para:
 - **Varios usuarios y grupos de roomies**: cada quien tiene su cuenta y ve solo lo suyo. Si quieren, crean un grupo para compartir gastos, fijos (renta, internet), metas y eventos; la app calcula **quién le debe a quién** y el mínimo de pagos para quedar a mano.
 - **Evidencias**: foto del ticket, comprobante de transferencia o PDF en gastos, ingresos, deudas, eventos y pagos entre compañeros. Las fotos se comprimen solas.
 
-Todo gratis: **GitHub Pages** (hosting) + **Supabase** (base de datos y login).
+Todo gratis: **GitHub Pages** (web) + **Supabase** (base de datos y login) + **GitHub Actions** (compila la app Android).
+
+## 📱 Descargar la app Android
+**[⬇️ Descargar mis-finanzas.apk](https://github.com/urieldomingezm/mis-finanzas/releases/latest/download/mis-finanzas.apk)**
+
+1. Abre el enlace desde tu celular Android y descarga el archivo.
+2. Ábrelo. Si Android lo pide, permite *instalar apps de origen desconocido* para tu navegador.
+3. Entra con la misma cuenta que usas en la web: tus datos son los mismos en todos lados.
+
+Cada vez que se suben cambios a GitHub se compila una APK nueva (pestaña *Releases*). Se instala encima de la anterior sin perder nada.
+
+## Proyecto Node
+Necesitas [Node.js 22+](https://nodejs.org).
+```bash
+npm install            # instala todo
+npm run dev            # web en http://localhost:5173 (recompila los estilos al guardar)
+npm run build          # deja la versión final en dist/
+npm run preview        # sirve dist/ para probarla
+npm run android:abrir  # abre el proyecto en Android Studio
+npm run android:apk    # compila la APK en tu compu (requiere Android Studio / SDK y Java 21)
+```
+No necesitas compilar la APK tú: **GitHub Actions lo hace solo** en cada `git push` (archivo `.github/workflows/android.yml`).
 
 ---
 
@@ -114,7 +135,11 @@ La primera vez que entras aparece un recorrido por todas las secciones. Después
 | `index.html` | Estructura de la app |
 | `src/app.css` | Diseño con **Tailwind CSS** (fuente). Claro/oscuro automático, responsivo para celular, tablet y escritorio |
 | `css/app.css` | CSS ya compilado que usa la página (no lo edites a mano) |
-| `package.json` | Comandos para recompilar el CSS |
+| `package.json` | Proyecto Node: dependencias y comandos (`dev`, `build`, `android:*`) |
+| `scripts/` | Servidor local, compilación a `dist/` y compilación de la APK |
+| `capacitor.config.json` | Configuración de la app Android (Capacitor) |
+| `android/` | Proyecto Android nativo generado por Capacitor (ícono, permisos, firma) |
+| `.github/workflows/android.yml` | Compila y publica la APK en cada push |
 | `app.js` | Toda la lógica: datos, cálculos, fugas, gráficas, calendario, grupos, evidencias |
 | `config.js` | Tus llaves de Supabase |
 | `supabase/schema.sql` | Tablas, seguridad entre usuarios y almacenamiento de evidencias |
@@ -129,6 +154,16 @@ npm run build      # genera css/app.css
 npm run dev        # o déjalo recompilando solo mientras editas
 ```
 Luego sube `css/app.css` junto con tus cambios. Los íconos son de [Bootstrap Icons](https://icons.getbootstrap.com): `<i class="bi bi-nombre-del-icono"></i>`.
+
+## Firma de la APK
+La APK se firma con una **llave de desarrollo incluida en el repo** (`android/app/firma-desarrollo.keystore`). Sirve para instalar y actualizar la app en tus celulares, pero como el repo es público, cualquiera podría firmar una APK con ella: **instala la app solo desde este repo**.
+
+Para una llave privada (necesaria si algún día la subes a Play Store):
+```bash
+keytool -genkeypair -keystore mi-llave.keystore -alias misfinanzas -keyalg RSA -keysize 2048 -validity 10000
+base64 -w0 mi-llave.keystore     # copia el resultado
+```
+En GitHub: *Settings → Secrets and variables → Actions* crea `ANDROID_KEYSTORE_BASE64` (lo copiado), `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS` (`misfinanzas`) y `ANDROID_KEY_PASSWORD`. Guarda bien ese archivo: si lo pierdes no podrás actualizar la app. Al cambiar de llave hay que desinstalar la versión anterior una vez.
 
 ## Límites del plan gratis (a considerar)
 - Supabase gratis **pausa el proyecto tras ~1 semana sin uso**; si pasa, entra a supabase.com y dale *Restore*. Usándola seguido no ocurre.

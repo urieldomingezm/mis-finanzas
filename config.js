@@ -13,5 +13,10 @@
 // =====================================================================
 window.APP_CONFIG = {
   SUPABASE_URL: "https://pdmcxbdbtbykpfofmxrn.supabase.co",
-  SUPABASE_ANON_KEY: "sb_publishable_DzFbyUJFS4GDxnOo9iZSFg_wSg8aUFN"
+  SUPABASE_ANON_KEY: "sb_publishable_DzFbyUJFS4GDxnOo9iZSFg_wSg8aUFN",
+
+  // Dirección pública de la web: a ella regresan los correos de confirmación y las invitaciones
+  SITE_URL: "https://urieldomingezm.github.io/mis-finanzas/",
+  // Última APK de Android (la publica GitHub Actions en "Releases")
+  APK_URL: "https://github.com/urieldomingezm/mis-finanzas/releases/latest/download/mis-finanzas.apk"
 };

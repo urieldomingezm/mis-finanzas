@@ -1,12 +1,30 @@
 {
   "name": "mis-finanzas",
+  "version": "1.0.0",
   "private": true,
-  "description": "App de finanzas personales y gastos compartidos (GitHub Pages + Supabase)",
+  "description": "Finanzas personales y gastos compartidos con roomies: web (GitHub Pages) y app Android (Capacitor), con Supabase",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build": "tailwindcss -i src/app.css -o css/app.css --minify",
-    "dev": "tailwindcss -i src/app.css -o css/app.css --watch"
+    "dev": "node scripts/dev.mjs",
+    "build:css": "tailwindcss -i src/app.css -o css/app.css --minify",
+    "build": "npm run build:css && node scripts/build.mjs",
+    "preview": "npm run build && node scripts/servidor.mjs dist",
+    "android:sync": "npm run build && cap sync android",
+    "android:abrir": "npm run android:sync && cap open android",
+    "android:apk": "npm run android:sync && node scripts/apk.mjs"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.5.3",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/browser": "^8.0.5",
+    "@capacitor/core": "^8.5.3",
+    "@capacitor/share": "^8.0.0"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.3",
     "@tailwindcss/cli": "^4.3.3",
     "tailwindcss": "^4.3.3"
   }

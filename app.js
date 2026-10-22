@@ -14,6 +14,17 @@ const sb   = DEMO ? null : window.supabase.createClient(CFG.SUPABASE_URL, CFG.SU
 const BUCKET = 'evidencias';
 const DEMO_COMPA = 'demo-compa';
 let ME = DEMO ? 'demo-yo' : null;   // id del usuario actual
+
+/* ---------- App nativa (Android con Capacitor) ---------- */
+const NATIVO = !!window.Capacitor?.isNativePlatform?.();
+const PLUG = window.Capacitor?.Plugins || {};
+const SITIO = CFG.SITE_URL || (location.origin + location.pathname);          // la web pública (para correos e invitaciones)
+const APK_URL = CFG.APK_URL || '';
+// Abre enlaces externos: en la app, en el navegador del sistema; en la web, en otra pestaña
+function abrirExterno(url) {
+  if (NATIVO && PLUG.Browser) return PLUG.Browser.open({ url });
+  window.open(url, '_blank', 'noopener');
+}
 let MI_ALIAS = 'Yo';
 
 /* ---------- Utilidades ---------- */
@@ -485,7 +496,7 @@ async function verAdjunto(a) {
   if (!url) return toast('No se pudo abrir la evidencia');
   if (a.tipo_mime === 'application/pdf') {
     if (DEMO) { const w = window.open(); w?.document.write(`<iframe src="${url}" style="border:0;width:100%;height:100%"></iframe>`); }
-    else window.open(url, '_blank', 'noopener');
+    else abrirExterno(url);
     return;
   }
   // Si se abrió desde un formulario, al cerrar el visor regresamos al formulario sin perder lo escrito
@@ -496,7 +507,7 @@ async function verAdjunto(a) {
     showConfirmButton: !DEMO, confirmButtonText: '<i class="bi bi-box-arrow-up-right" aria-hidden="true"></i> Abrir original',
     showCancelButton: true, cancelButtonText: volver ? '<i class="bi bi-arrow-left" aria-hidden="true"></i> Volver' : 'Cerrar'
   });
-  if (r.isConfirmed) window.open(url, '_blank', 'noopener');
+  if (r.isConfirmed) abrirExterno(url);
   if (volver) abrirForm(volver.c.tipo, volver.c.row, { ...volver.c, draft: volver.draft });
 }
 document.addEventListener('click', async e => {
@@ -1094,10 +1105,10 @@ const grupoApi = {
   }
 };
 async function invitar(g) {
-  const url = location.origin + location.pathname;
-  const texto = `Únete a mi grupo "${g.nombre}" en Mis Finanzas para dividir gastos.\n1) Entra a ${url} y crea tu cuenta\n2) Ve a Grupo → Unirme con código\n3) Código: ${g.codigo}`;
+  const texto = `Únete a mi grupo "${g.nombre}" en Mis Finanzas para dividir gastos.\n1) Entra a ${SITIO}${APK_URL ? ` o descarga la app Android: ${APK_URL}` : ''} y crea tu cuenta\n2) Ve a Grupo → Unirme con código\n3) Código: ${g.codigo}`;
   try {
-    if (navigator.share) await navigator.share({ title: 'Mis Finanzas', text: texto });
+    if (NATIVO && PLUG.Share) await PLUG.Share.share({ title: 'Mis Finanzas', text: texto, dialogTitle: 'Invitar al grupo' });
+    else if (navigator.share) await navigator.share({ title: 'Mis Finanzas', text: texto });
     else { await navigator.clipboard.writeText(texto); toast('Invitación copiada. Pégala en WhatsApp.'); }
   } catch { /* el usuario canceló */ }
 }
@@ -1235,6 +1246,7 @@ async function cargarEjemplo() {
 }
 
 /* ---------- Tours guiados (Driver.js) ---------- */
+let tourActual = null;
 const P = (element, title, description, side) => ({ element, title, description, side });
 const TOURS = {
   bienvenida: [
@@ -1304,7 +1316,7 @@ function iniciarTour(nombre, alTerminar) {
   if (nombre === 'grupo') nombre = misGrupos().length ? 'grupo_con' : 'grupo_sin';
   const pasos = (TOURS[nombre] || []).filter(p => !p.element || visible(document.querySelector(p.element)));
   if (!pasos.length) return;
-  const d = D({
+  const d = tourActual = D({
     showProgress: pasos.length > 1, allowClose: true, smoothScroll: true, overlayOpacity: 0.55,
     stagePadding: 6, stageRadius: 12, popoverClass: 'tour',
     nextBtnText: 'Siguiente', prevBtnText: 'Atrás', doneBtnText: '¡Listo!', progressText: '{{current}} de {{total}}',
@@ -1343,12 +1355,12 @@ $('#login-form').addEventListener('submit', async e => {
   try {
     if (modo === 'signup') {
       if (String(password).length < 8) { msg.textContent = 'Usa una contraseña de al menos 8 caracteres.'; return; }
-      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+      const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITIO } });
       if (error) throw error;
       msg.textContent = data.session ? '' : 'Cuenta creada. Revisa tu correo para confirmarla y luego entra.';
     } else if (modo === 'reset') {
       if (!email) { msg.textContent = 'Escribe tu correo primero.'; return; }
-      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+      const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITIO });
       if (error) throw error;
       msg.textContent = 'Te enviamos un correo para cambiar tu contraseña.';
     } else {
@@ -1385,4 +1397,25 @@ async function boot() {
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => !$('#app').hidden && render());
 boot();
 
-if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+if (!NATIVO && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---------- Integración con Android ---------- */
+// Botón descargar app (solo en la web)
+document.querySelectorAll('[data-apk]').forEach(el => { if (APK_URL && !NATIVO) { el.href = APK_URL; el.hidden = false; } });
+if (NATIVO) {
+  document.documentElement.classList.add('nativo');
+  // Enlaces externos (Google Calendar, etc.) se abren en el navegador del sistema
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[target="_blank"]');
+    if (a && /^https?:/.test(a.href)) { e.preventDefault(); e.stopPropagation(); abrirExterno(a.href); }
+  }, true);
+  // Botón "atrás" de Android: cierra ventanas/tour, regresa a Inicio y solo entonces sale
+  PLUG.App?.addListener('backButton', () => {
+    if (tourActual?.isActive?.()) return tourActual.destroy();
+    if (Swal.isVisible()) return Swal.close();
+    if (tab !== 'resumen') { tab = 'resumen'; render(); window.scrollTo({ top: 0 }); return; }
+    PLUG.App.exitApp();
+  });
+  // Al regresar a la app, trae lo que hayan registrado tus compañeros
+  PLUG.App?.addListener('resume', () => { if (usuario && !Swal.isVisible()) refrescar(); });
+}

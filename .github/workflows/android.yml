@@ -1,0 +1,88 @@
+# Compila la app Android (APK) en la nube cada vez que subes cambios a main
+# y la publica en "Releases" para descargarla:
+#   https://github.com/urieldomingezm/mis-finanzas/releases/latest/download/mis-finanzas.apk
+name: App Android (APK)
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '**.md'
+      - 'supabase/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      TIENE_LLAVE_PRIVADA: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Compilar la web y copiarla al proyecto Android
+        run: npm run android:sync
+
+      # Opcional: llave privada de firma guardada en Settings → Secrets and variables → Actions
+      - name: Llave de firma privada (si existe)
+        if: env.TIENE_LLAVE_PRIVADA == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/firma.keystore"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/firma.keystore" >> "$GITHUB_ENV"
+
+      - name: Compilar APK firmada
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk ../mis-finanzas.apk
+
+      - name: Guardar APK como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: mis-finanzas-apk
+          path: mis-finanzas.apk
+
+      - name: Publicar en Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-v1.0.${{ github.run_number }}
+          name: App Android 1.0.${{ github.run_number }}
+          make_latest: true
+          files: mis-finanzas.apk
+          body: |
+            **Descarga:** `mis-finanzas.apk` (abajo, en *Assets*).
+
+            Cómo instalarla en tu celular Android:
+            1. Abre este enlace desde el celular y descarga `mis-finanzas.apk`.
+            2. Ábrela. Si Android pregunta, permite *instalar apps de origen desconocido* para tu navegador.
+            3. Las versiones nuevas se instalan encima de la anterior sin perder tu sesión.
+
+            Cambios: ${{ github.event.head_commit.message || 'compilación manual' }}
