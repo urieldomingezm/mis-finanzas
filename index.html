@@ -21,6 +21,20 @@
 </head>
 <body>
 
+  <!-- ============ Pantalla de carga ============ -->
+  <div id="cargador" role="status" aria-live="polite">
+    <svg class="logo-carga" viewBox="96 88 320 336" aria-hidden="true">
+      <rect class="barra b1" x="112" y="300" width="64" height="104" rx="14" fill="#cfeedd"/>
+      <rect class="barra b2" x="224" y="236" width="64" height="168" rx="14" fill="#e9f7ef"/>
+      <rect class="barra b3" x="336" y="160" width="64" height="244" rx="14" fill="#ffffff"/>
+      <path class="linea" d="M120 236 L232 168 L300 196 L392 108" fill="none" stroke="#ffd36b" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle class="punto" cx="392" cy="108" r="20" fill="#ffd36b"/>
+    </svg>
+    <p class="nombre-carga">Mis Finanzas</p>
+    <p class="texto-carga">Cargando tus finanzas…</p>
+  </div>
+  <div id="barra-carga" hidden aria-hidden="true"></div>
+
   <!-- ============ LOGIN ============ -->
   <section id="login" class="grid min-h-dvh place-items-center p-4" hidden>
     <form id="login-form" class="login-card">

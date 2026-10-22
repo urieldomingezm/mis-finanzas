@@ -64,6 +64,54 @@ function toast(msg, ms = 2600) {
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), ms);
 }
 
+/* ---------- Carga y animaciones ---------- */
+const sinMovimiento = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+// Pantalla de carga inicial (se ve mientras se revisa la sesión y llegan los datos)
+function ocultarCargador() {
+  const c = $('#cargador'); if (!c || c.classList.contains('fuera')) return;
+  c.classList.add('fuera');
+  setTimeout(() => c.remove(), 600);
+}
+// Barra delgada arriba mientras se actualizan los datos (solo si tarda)
+let barraTimer = null, barraCuenta = 0;
+function barraCarga(activa) {
+  const b = $('#barra-carga'); if (!b) return;
+  barraCuenta = Math.max(0, barraCuenta + (activa ? 1 : -1));
+  clearTimeout(barraTimer);
+  if (barraCuenta > 0) barraTimer = setTimeout(() => { b.hidden = false; }, 150);
+  else b.hidden = true;
+}
+// Esqueleto con brillo mientras cargan los datos por primera vez
+const esqueleto = () => `
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2" aria-hidden="true">${'<div class="card grid gap-3"><div class="esq h-3 w-1/3"></div><div class="esq h-4"></div><div class="esq h-4 w-5/6"></div><div class="esq mt-1 h-6 w-1/2"></div></div>'.repeat(2)}</div>
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 section" aria-hidden="true">${'<div class="card grid gap-2"><div class="esq h-3 w-1/2"></div><div class="esq h-6 w-3/4"></div><div class="esq h-3 w-1/3"></div></div>'.repeat(4)}</div>
+  <div class="section list" aria-hidden="true">${'<div class="item"><div class="esq size-2.5 rounded-full"></div><div class="main grid gap-2"><div class="esq h-4 w-2/3"></div><div class="esq h-3 w-1/3"></div></div><div class="esq h-4 w-16"></div></div>'.repeat(4)}</div>
+  <p class="sr-only" role="status">Cargando tus datos…</p>`;
+// Entrada escalonada de tarjetas y elementos de lista
+function animarEntrada(root) {
+  if (sinMovimiento()) return;
+  const els = [...root.querySelectorAll(':scope > *, :scope > .grid > *, :scope > .section > .grid > *, :scope > .section > .list > *, :scope > .list > *')]
+    .filter(el => !el.matches('.grid, .section:has(> .grid), .section:has(> .list)'));
+  els.slice(0, 18).forEach((el, i) => {
+    el.style.setProperty('--i', i); el.classList.remove('entra'); void el.offsetWidth; el.classList.add('entra');
+    el.addEventListener('animationend', e => { if (e.target === el) { el.classList.remove('entra'); el.style.removeProperty('--i'); } }, { once: true });
+  });
+  // Las barras de progreso (metas, presupuestos, deudas) se llenan
+  root.querySelectorAll('.bar i').forEach((b, i) => {
+    b.style.setProperty('--d', `${Math.min(i, 10) * 50 + 150}ms`); b.classList.add('crece');
+    b.addEventListener('animationend', () => b.classList.remove('crece'), { once: true });
+  });
+}
+// Los montos "cuentan" desde 0 hasta su valor
+function contarMontos(root) {
+  if (sinMovimiento()) return;
+  root.querySelectorAll('[data-num]').forEach(el => {
+    const fin = Number(el.dataset.num) || 0, t0 = performance.now(), dur = 700;
+    const paso = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); el.textContent = money(fin * e); if (k < 1) requestAnimationFrame(paso); };
+    requestAnimationFrame(paso);
+  });
+}
+
 /* ---------- Capa de datos (Supabase o navegador) ---------- */
 const TABLAS = ['ingresos', 'gastos', 'deudas', 'recurrentes', 'metas', 'presupuestos', 'eventos', 'grupos', 'miembros', 'adjuntos', 'liquidaciones'];
 const LS = 'misfinanzas_';
@@ -151,7 +199,7 @@ async function cargar() {
   derivar();
   if (falta && !avisoMigracion) { avisoMigracion = true; toast('Falta actualizar la base: ejecuta otra vez supabase/schema.sql en Supabase', 6000); }
 }
-async function refrescar() { await cargar(); render(); }
+async function refrescar() { barraCarga(true); try { await cargar(); } finally { barraCarga(false); } render(); }
 
 const esMio = row => (row.user_id ?? ME) === ME;
 const misGrupos = () => R.grupos.filter(g => R.miembros.some(m => m.grupo_id === g.id && m.user_id === ME));
@@ -272,7 +320,9 @@ const clasesSwal = (extra = {}) => ({
 });
 const SWAL = Swal.mixin({
   heightAuto: false, buttonsStyling: false, reverseButtons: true, returnFocus: false,
-  customClass: clasesSwal(), cancelButtonText: 'Cancelar'
+  customClass: clasesSwal(), cancelButtonText: 'Cancelar',
+  showClass: { popup: 'anim-entrar', backdrop: 'swal2-backdrop-show', icon: 'swal2-icon-show' },
+  hideClass: { popup: 'anim-salir', backdrop: 'swal2-backdrop-hide', icon: 'swal2-icon-hide' }
 });
 // Confirmación con SweetAlert2 (reemplaza al confirm() del navegador)
 async function confirmar({ titulo, texto = '', ok = 'Sí, continuar', peligro = false, icono = 'warning' }) {
@@ -411,9 +461,12 @@ function abrirForm(tipo, row = null, extra = {}) {
 
   let paso = 0;
   const mostrarPaso = n => {
+    const dir = n > paso ? 'adelante' : n < paso ? 'atras' : '';
     paso = n;
     const form = fm();
     pasos.forEach((p, i) => { const el = form.querySelector(`[data-panel="${i}"]`); el.hidden = total > 1 ? i !== visibles[n] : !p.visible; });
+    const actual = form.querySelector(`[data-panel="${visibles[n]}"]`);
+    if (dir && actual && !sinMovimiento()) { actual.classList.remove('anim-adelante', 'anim-atras'); void actual.offsetWidth; actual.classList.add('anim-' + dir); }
     form.querySelectorAll('.wizard-pasos li').forEach((li, i) => { li.classList.toggle('activo', i === n); li.classList.toggle('hecho', i < n); });
     const deny = Swal.getDenyButton(), conf = Swal.getConfirmButton();
     if (deny) deny.style.display = n > 0 ? '' : 'none';
@@ -789,9 +842,9 @@ function vResumen() {
 
   const periodo = (titulo, i, g) => `
     <div class="card periodo"><h3>${titulo}</h3>
-      <div class="fila"><span>Ingresos</span><b class="pos">${money(i)}</b></div>
-      <div class="fila"><span>Gastos (tu parte)</span><b class="neg">${money(g)}</b></div>
-      <div class="fila neto"><span>Te queda</span><span class="${i - g >= 0 ? 'pos' : 'neg'}">${money(i - g)}</span></div>
+      <div class="fila"><span>Ingresos</span><b class="pos" data-num="${i}">${money(i)}</b></div>
+      <div class="fila"><span>Gastos (tu parte)</span><b class="neg" data-num="${g}">${money(g)}</b></div>
+      <div class="fila neto"><span>Te queda</span><span class="${i - g >= 0 ? 'pos' : 'neg'}" data-num="${i - g}">${money(i - g)}</span></div>
     </div>`;
 
   return `
@@ -800,8 +853,8 @@ function vResumen() {
     ${periodo(`Este mes · ${MESES[hoy.getMonth()]}`, im, gm)}
   </div>
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 section" id="t-kpis">
-    <div class="card kpi"><span>Deuda total</span><b class="${deuda > 0 ? 'neg' : ''}">${money(deuda)}</b><small>${S.deudas.filter(d => d.saldo > 0).length} activas</small></div>
-    <div class="card kpi"><span>Gastos fijos / mes</span><b>${money(fijos)}</b><small>${money(fijos * 12)} al año</small></div>
+    <div class="card kpi"><span>Deuda total</span><b class="${deuda > 0 ? 'neg' : ''}" data-num="${deuda}">${money(deuda)}</b><small>${S.deudas.filter(d => d.saldo > 0).length} activas</small></div>
+    <div class="card kpi"><span>Gastos fijos / mes</span><b data-num="${fijos}">${money(fijos)}</b><small>${money(fijos * 12)} al año</small></div>
     ${gs.length ? `<div class="card kpi clickable" data-act="tab" data-v="grupo"><span>Con tus roomies</span><b class="${saldoGrupos >= 0 ? 'pos' : 'neg'}">${saldoGrupos >= 0 ? 'Te deben ' : 'Debes '}${money(Math.abs(saldoGrupos))}</b><small>${gs.length} grupo${gs.length > 1 ? 's' : ''}</small></div>`
       : `<div class="card kpi"><span>Ahorrado en metas</span><b class="pos">${money(ahorrado)}</b><small>${S.metas.length} metas</small></div>`}
     <div class="card kpi"><span>Tasa de ahorro del mes</span><b>${im > 0 ? pct(im - gm, im) : 0}%</b><small>Ideal: 10–20% o más</small></div>
@@ -1090,10 +1143,12 @@ function vGrupo() {
 }
 
 const VISTAS = { resumen: vResumen, movimientos: vMovimientos, deudas: vDeudas, fijos: vFijos, metas: vMetas, agenda: vAgenda, grupo: vGrupo };
-function render() {
+function render(animar = false) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-  $('#view').innerHTML = VISTAS[tab]();
+  const v = $('#view');
+  v.innerHTML = VISTAS[tab]();
   if (tab === 'resumen') dibujarResumen();
+  if (animar) { animarEntrada(v); contarMontos(v); }
 }
 
 /* ---------- Acciones de grupo ---------- */
@@ -1128,7 +1183,8 @@ async function invitar(g) {
 /* ---------- Eventos de la vista ---------- */
 $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('button[data-tab]'); if (!b) return;
-  tab = b.dataset.tab; render(); window.scrollTo({ top: 0 });
+  if (b.dataset.tab === tab) return;
+  tab = b.dataset.tab; render(true); window.scrollTo({ top: 0, behavior: sinMovimiento() ? 'auto' : 'smooth' });
 });
 $('#view').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -1139,7 +1195,7 @@ $('#view').addEventListener('click', async e => {
       case 'edit': { const row = rawRow(t, id); if (row) abrirForm(t, row); break; }
       case 'nuevo': abrirForm(t, null, { pre: b.dataset.g ? { grupo_id: b.dataset.g } : {} }); break;
       case 'nuevo-evento': abrirForm('eventos', null, { pre: { fecha: v || today(), ...(tab === 'grupo' && grupoSel ? { grupo_id: grupoSel } : {}) } }); break;
-      case 'tab': tab = v; render(); window.scrollTo({ top: 0 }); break;
+      case 'tab': tab = v; render(true); window.scrollTo({ top: 0 }); break;
       case 'serie': vistaSerie = v; render(); break;
       case 'movtipo': movTipo = v; render(); break;
       case 'dia': agSel = Number(v) && agSel !== Number(v) ? Number(v) : null; render(); break;
@@ -1352,12 +1408,13 @@ async function mostrarApp() {
   $('#login').hidden = true; $('#app').hidden = false;
   $('#demo-badge').hidden = !DEMO; $('#demo-banner').hidden = !DEMO; $('#btn-logout').hidden = DEMO;
   if (!DEMO) { ME = usuario.id; MI_ALIAS = (usuario.email || 'Yo').split('@')[0]; $('#user-chip').textContent = usuario.email; $('#user-chip').hidden = false; }
-  $('#view').innerHTML = '<div class="empty">Cargando…</div>';
+  $('#view').innerHTML = esqueleto();
+  ocultarCargador();
   try { await cargar(); } catch (err) { toast('No se pudieron cargar tus datos: ' + err.message); }
-  render();
+  render(true);
   tourBienvenida();
 }
-function mostrarLogin() { $('#app').hidden = true; $('#login').hidden = false; }
+function mostrarLogin() { $('#app').hidden = true; $('#login').hidden = false; ocultarCargador(); }
 
 $('#login-form').addEventListener('submit', async e => {
   e.preventDefault();
@@ -1407,7 +1464,13 @@ async function boot() {
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && usuario && !Swal.isVisible()) refrescar(); });
 }
 matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => !$('#app').hidden && render());
-boot();
+boot().catch(err => {
+  console.error(err);
+  ocultarCargador();
+  toast('No se pudo conectar. Revisa tu internet e inténtalo de nuevo.', 6000);
+  if (!usuario) mostrarLogin();
+});
+setTimeout(ocultarCargador, 10000);   // por si algo se atora, nunca dejar la pantalla de carga fija
 
 if (!NATIVO && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 
@@ -1425,7 +1488,7 @@ if (NATIVO) {
   PLUG.App?.addListener('backButton', () => {
     if (tourActual?.isActive?.()) return tourActual.destroy();
     if (Swal.isVisible()) return Swal.close();
-    if (tab !== 'resumen') { tab = 'resumen'; render(); window.scrollTo({ top: 0 }); return; }
+    if (tab !== 'resumen') { tab = 'resumen'; render(true); window.scrollTo({ top: 0 }); return; }
     PLUG.App.exitApp();
   });
   // Al regresar a la app, trae lo que hayan registrado tus compañeros
