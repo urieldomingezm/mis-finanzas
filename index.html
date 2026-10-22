@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es-MX">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Mis Finanzas</title>
+  <meta name="description" content="Ingresos semanales y mensuales, deudas, gastos fijos, metas, gastos compartidos con roomies y fugas de dinero.">
+  <meta name="theme-color" content="#1f7a55">
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- ============ LOGIN ============ -->
+  <section id="login" hidden>
+    <form id="login-form" class="login-card">
+      <img src="icon.svg" alt="" width="56" height="56">
+      <h1>Mis Finanzas</h1>
+      <p class="muted">Cuánto ganas, en qué se te va y cuánto te falta para tus metas.</p>
+      <label>Correo<input type="email" name="email" required autocomplete="email"></label>
+      <label>Contraseña<input type="password" name="password" required minlength="6" autocomplete="current-password"></label>
+      <button class="btn primary" data-modo="login">Entrar</button>
+      <button class="btn ghost" data-modo="signup">Crear cuenta</button>
+      <button type="submit" class="link-btn" id="btn-reset" data-modo="reset" formnovalidate>Olvidé mi contraseña</button>
+      <p id="login-msg" class="muted small" role="status"></p>
+    </form>
+  </section>
+
+  <!-- ============ APP ============ -->
+  <div id="app" hidden>
+    <header id="topbar">
+      <div class="brand"><img src="icon.svg" alt="" width="28" height="28"><span>Mis Finanzas</span></div>
+      <div class="top-actions">
+        <span id="user-chip" class="badge" hidden></span>
+        <span id="demo-badge" class="badge warn" hidden title="Los datos se guardan solo en este navegador">Modo demo</span>
+        <button id="btn-logout" class="btn ghost small" hidden>Salir</button>
+      </div>
+    </header>
+
+    <nav id="tabs" aria-label="Secciones">
+      <button data-tab="resumen" class="active"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg><span>Inicio</span></button>
+      <button data-tab="movimientos"><svg viewBox="0 0 24 24"><path d="M7 4v13m0 0-3-3m3 3 3-3M17 20V7m0 0-3 3m3-3 3 3"/></svg><span class="l">Movimientos</span><span class="s">Movs</span></button>
+      <button data-tab="deudas"><svg viewBox="0 0 24 24"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg><span>Deudas</span></button>
+      <button data-tab="fijos"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/></svg><span>Fijos</span></button>
+      <button data-tab="metas"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6"/></svg><span>Metas</span></button>
+      <button data-tab="agenda"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg><span class="l">Calendario</span><span class="s">Agenda</span></button>
+      <button data-tab="grupo"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.2 3.2 0 0 1 0 6.4M18 14.3c1.8.8 3 2.6 3 5.7"/></svg><span>Grupo</span></button>
+    </nav>
+
+    <div id="demo-banner" class="banner" hidden>
+      <span>Estás en <b>modo demo</b>: tus datos viven solo en este navegador. Configura Supabase en <code>config.js</code> para tenerlos en la nube y en todos tus dispositivos.</span>
+      <button class="btn ghost small" id="btn-ejemplo">Cargar datos de ejemplo</button>
+    </div>
+
+    <main id="view" aria-live="polite"></main>
+
+    <button id="fab" aria-label="Agregar">+</button>
+  </div>
+
+  <!-- ============ Formulario genérico ============ -->
+  <dialog id="modal">
+    <form id="modal-form">
+      <header><h2 id="modal-title">Nuevo</h2><button type="button" class="icon-btn" data-close aria-label="Cerrar">×</button></header>
+      <div id="modal-body" class="form-grid"></div>
+      <footer>
+        <button type="button" id="modal-delete" class="btn danger ghost">Eliminar</button>
+        <span class="spacer"></span>
+        <button type="button" class="btn ghost" data-close>Cancelar</button>
+        <button type="submit" class="btn primary" id="modal-save">Guardar</button>
+      </footer>
+    </form>
+  </dialog>
+
+  <!-- ============ Menú rápido ============ -->
+  <dialog id="quick">
+    <div class="quick-grid">
+      <button data-q="gastos" class="q neg">Gasto</button>
+      <button data-q="ingresos" class="q pos">Ingreso</button>
+      <button data-q="deudas" class="q">Deuda</button>
+      <button data-q="recurrentes" class="q">Gasto fijo</button>
+      <button data-q="metas" class="q">Meta</button>
+      <button data-q="presupuestos" class="q">Presupuesto</button>
+      <button data-q="eventos" class="q">Evento</button>
+    </div>
+    <button class="btn ghost block" data-close>Cancelar</button>
+  </dialog>
+
+  <!-- ============ Visor de evidencias ============ -->
+  <dialog id="visor">
+    <div class="visor-head"><small id="visor-info" class="muted"></small><button type="button" class="icon-btn" data-close aria-label="Cerrar">×</button></div>
+    <img id="visor-img" alt="">
+    <div class="visor-foot"><a id="visor-abrir" class="btn ghost small" target="_blank" rel="noopener">Abrir original</a></div>
+  </dialog>
+
+  <div id="toast" role="status"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
