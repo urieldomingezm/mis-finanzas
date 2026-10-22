@@ -1,24 +1,29 @@
 -- =====================================================================
---  Mis Finanzas — esquema de base de datos para Supabase (v2: multiusuario)
+--  Mis Finanzas — esquema de base de datos para Supabase (v3: reforzado)
 --  Pega TODO este archivo en Supabase → SQL Editor → New query → Run.
---  Se puede ejecutar varias veces y también sobre la versión anterior:
---  no borra tus datos, solo agrega lo nuevo.
+--  Se puede ejecutar varias veces y sobre versiones anteriores:
+--  no borra tus datos, solo agrega o actualiza lo necesario.
 --
 --  Privacidad:
 --   · Ingresos, deudas y presupuestos: siempre privados.
 --   · Gastos, gastos fijos, metas y eventos: privados, salvo que al
 --     registrarlos elijas un grupo en "Compartir con".
 --   · Evidencias (fotos/PDF): las ve quien puede ver el registro al
---     que pertenecen.
+--     que pertenecen, y nadie más.
 -- =====================================================================
 
 create extension if not exists pgcrypto;
+
+-- Esquema interno: sus funciones NO se publican en la API
+create schema if not exists privado;
+revoke all on schema privado from public, anon;
+grant usage on schema privado to authenticated;
 
 -- ---------- Grupos (depa, casa, roomies) ----------
 create table if not exists public.grupos (
   id          uuid primary key default gen_random_uuid(),
   nombre      text not null,
-  codigo      text not null unique default upper(substr(md5(gen_random_uuid()::text), 1, 6)),
+  codigo      text not null unique,
   creado_por  uuid not null default auth.uid() references auth.users(id) on delete cascade,
   created_at  timestamptz not null default now()
 );
@@ -157,14 +162,80 @@ create table if not exists public.adjuntos (
   created_at   timestamptz not null default now()
 );
 
+-- ---------- Registro de intentos fallidos al unirse (anti fuerza bruta) ----------
+create table if not exists privado.intentos_union (
+  user_id  uuid not null,
+  at       timestamptz not null default now()
+);
+create index if not exists intentos_union_idx on privado.intentos_union (user_id, at);
+revoke all on privado.intentos_union from public, anon, authenticated;
+
+-- =====================================================================
+--  Límites de datos (evitan textos gigantes, montos absurdos y basura)
+-- =====================================================================
+do $$
+declare r record;
+begin
+  for r in select * from (values
+    ('grupos','nombre',60), ('grupos','codigo',12), ('miembros','alias',40), ('miembros','rol',20),
+    ('ingresos','concepto',120), ('ingresos','fuente',60), ('ingresos','notas',1000),
+    ('gastos','concepto',120), ('gastos','categoria',60), ('gastos','metodo',40), ('gastos','notas',1000),
+    ('deudas','acreedor',120), ('deudas','tipo',60), ('deudas','notas',1000),
+    ('recurrentes','nombre',120), ('recurrentes','categoria',60), ('recurrentes','notas',1000),
+    ('metas','nombre',120), ('metas','notas',1000), ('presupuestos','categoria',60),
+    ('eventos','titulo',120), ('eventos','tipo',30), ('eventos','repetir',20), ('eventos','notas',1000),
+    ('liquidaciones','notas',300), ('adjuntos','tabla',30), ('adjuntos','ruta',200), ('adjuntos','nombre',200), ('adjuntos','tipo_mime',60)
+  ) as t(tabla, columna, maximo) loop
+    if not exists (select 1 from pg_constraint where conname = r.tabla || '_' || r.columna || '_largo') then
+      execute format('alter table public.%I add constraint %I check (char_length(%I) <= %s)',
+                     r.tabla, r.tabla || '_' || r.columna || '_largo', r.columna, r.maximo);
+    end if;
+  end loop;
+
+  if not exists (select 1 from pg_constraint where conname = 'adjuntos_tabla_valida') then
+    alter table public.adjuntos add constraint adjuntos_tabla_valida
+      check (tabla in ('ingresos','gastos','deudas','recurrentes','metas','eventos','liquidaciones'));
+  end if;
+  -- Cada evidencia solo puede apuntar a un archivo de tu propia carpeta
+  if not exists (select 1 from pg_constraint where conname = 'adjuntos_ruta_propia') then
+    alter table public.adjuntos add constraint adjuntos_ruta_propia
+      check (split_part(ruta, '/', 1) = user_id::text and ruta !~ '\.\.');
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'metas_ahorrado_valido') then
+    alter table public.metas add constraint metas_ahorrado_valido check (ahorrado >= 0);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'deudas_tasa_valida') then
+    alter table public.deudas add constraint deudas_tasa_valida check (tasa_anual is null or tasa_anual between 0 and 5000);
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'eventos_monto_valido') then
+    alter table public.eventos add constraint eventos_monto_valido check (monto is null or monto >= 0);
+  end if;
+end $$;
+
 -- =====================================================================
 --  Funciones
 -- =====================================================================
--- ¿El usuario actual pertenece al grupo? (security definer evita recursión en RLS)
-create or replace function public.es_miembro(g uuid) returns boolean
+-- ¿El usuario actual pertenece al grupo? (interna; no está expuesta en la API)
+create or replace function privado.es_miembro(g uuid) returns boolean
 language sql stable security definer set search_path = public as $$
   select exists (select 1 from public.miembros m where m.grupo_id = g and m.user_id = auth.uid());
 $$;
+revoke all on function privado.es_miembro(uuid) from public, anon;
+grant execute on function privado.es_miembro(uuid) to authenticated;
+
+-- Código de invitación: 8 caracteres aleatorios criptográficamente seguros (~1 billón de combinaciones)
+create or replace function privado.nuevo_codigo() returns text
+language plpgsql volatile set search_path = public, extensions as $$
+declare
+  abc constant text := 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  b bytea := gen_random_bytes(8);
+  c text := '';
+begin
+  for i in 0..7 loop c := c || substr(abc, 1 + (get_byte(b, i) % 32), 1); end loop;
+  return c;
+end $$;
+revoke all on function privado.nuevo_codigo() from public, anon, authenticated;
+alter table public.grupos alter column codigo set default privado.nuevo_codigo();
 
 create or replace function public.crear_grupo(p_nombre text, p_alias text) returns uuid
 language plpgsql security definer set search_path = public as $$
@@ -172,27 +243,146 @@ declare g uuid;
 begin
   if auth.uid() is null then raise exception 'Necesitas iniciar sesión'; end if;
   if coalesce(trim(p_nombre), '') = '' then raise exception 'El grupo necesita un nombre'; end if;
-  insert into public.grupos (nombre, creado_por) values (trim(p_nombre), auth.uid()) returning id into g;
+  if (select count(*) from public.miembros where user_id = auth.uid()) >= 10 then
+    raise exception 'Puedes estar en máximo 10 grupos';
+  end if;
+  insert into public.grupos (nombre, creado_por) values (left(trim(p_nombre), 60), auth.uid()) returning id into g;
   insert into public.miembros (grupo_id, user_id, alias, rol)
-  values (g, auth.uid(), coalesce(nullif(trim(p_alias), ''), 'Yo'), 'admin');
+  values (g, auth.uid(), left(coalesce(nullif(trim(p_alias), ''), 'Yo'), 40), 'admin');
   return g;
 end $$;
 
+-- Devuelve el id del grupo, o NULL si el código no existe.
+-- Máximo 10 intentos fallidos por hora por usuario.
 create or replace function public.unirse_grupo(p_codigo text, p_alias text) returns uuid
 language plpgsql security definer set search_path = public as $$
 declare g uuid;
 begin
   if auth.uid() is null then raise exception 'Necesitas iniciar sesión'; end if;
-  select id into g from public.grupos where codigo = upper(trim(p_codigo));
-  if g is null then raise exception 'Código de grupo no válido'; end if;
+  if (select count(*) from privado.intentos_union where user_id = auth.uid() and at > now() - interval '1 hour') >= 10 then
+    raise exception 'Demasiados intentos con códigos incorrectos. Espera una hora e inténtalo de nuevo.';
+  end if;
+  select id into g from public.grupos where codigo = upper(regexp_replace(coalesce(p_codigo, ''), '\s', '', 'g'));
+  if g is null then
+    insert into privado.intentos_union (user_id) values (auth.uid());
+    delete from privado.intentos_union where at < now() - interval '1 day';
+    return null;
+  end if;
+  if not exists (select 1 from public.miembros where grupo_id = g and user_id = auth.uid()) then
+    if (select count(*) from public.miembros where grupo_id = g) >= 20 then raise exception 'Ese grupo ya está lleno (20 personas)'; end if;
+    if (select count(*) from public.miembros where user_id = auth.uid()) >= 10 then raise exception 'Puedes estar en máximo 10 grupos'; end if;
+  end if;
   insert into public.miembros (grupo_id, user_id, alias)
-  values (g, auth.uid(), coalesce(nullif(trim(p_alias), ''), 'Compañero'))
+  values (g, auth.uid(), left(coalesce(nullif(trim(p_alias), ''), 'Compañero'), 40))
   on conflict (grupo_id, user_id) do update set alias = excluded.alias;
   return g;
 end $$;
 
-revoke execute on function public.es_miembro(uuid), public.crear_grupo(text, text), public.unirse_grupo(text, text) from public, anon;
-grant  execute on function public.es_miembro(uuid), public.crear_grupo(text, text), public.unirse_grupo(text, text) to authenticated;
+revoke execute on function public.crear_grupo(text, text), public.unirse_grupo(text, text) from public, anon;
+grant  execute on function public.crear_grupo(text, text), public.unirse_grupo(text, text) to authenticated;
+
+-- ---------- Validaciones de integridad de grupo ----------
+-- Gastos compartidos: quien pagó y entre quiénes se divide deben ser miembros del grupo
+create or replace function privado.validar_gasto() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare ms uuid[];
+begin
+  if new.grupo_id is null then
+    new.pagado_por := new.user_id;
+    new.participantes := null;
+    return new;
+  end if;
+  if tg_op = 'UPDATE' and new.grupo_id is not distinct from old.grupo_id
+     and new.pagado_por is not distinct from old.pagado_por
+     and new.participantes is not distinct from old.participantes then
+    return new;
+  end if;
+  select array_agg(user_id) into ms from public.miembros where grupo_id = new.grupo_id;
+  new.pagado_por := coalesce(new.pagado_por, new.user_id);
+  if not (new.pagado_por = any(ms)) then raise exception 'Quien pagó debe ser miembro del grupo'; end if;
+  if new.participantes is null or cardinality(new.participantes) = 0 then new.participantes := ms; end if;
+  if not (new.participantes <@ ms) then raise exception 'Solo puedes dividir entre miembros del grupo'; end if;
+  return new;
+end $$;
+drop trigger if exists validar_gasto on public.gastos;
+create trigger validar_gasto before insert or update on public.gastos
+  for each row execute function privado.validar_gasto();
+
+-- Pagos entre compañeros: ambos deben ser miembros
+create or replace function privado.validar_liquidacion() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if not exists (select 1 from public.miembros where grupo_id = new.grupo_id and user_id = new.de)
+     or not exists (select 1 from public.miembros where grupo_id = new.grupo_id and user_id = new.para) then
+    raise exception 'Ambas personas deben ser miembros del grupo';
+  end if;
+  return new;
+end $$;
+drop trigger if exists validar_liquidacion on public.liquidaciones;
+create trigger validar_liquidacion before insert or update on public.liquidaciones
+  for each row execute function privado.validar_liquidacion();
+
+-- Evidencias: solo se pueden colgar de registros tuyos (o pagos del grupo donde participas),
+-- y heredan con quién se comparte ese registro.
+create or replace function privado.validar_adjunto() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare dueno uuid; grupo uuid;
+begin
+  if new.tabla in ('ingresos', 'deudas') then
+    execute format('select user_id, null::uuid from public.%I where id = $1', new.tabla) into dueno, grupo using new.registro_id;
+  else
+    execute format('select user_id, grupo_id from public.%I where id = $1', new.tabla) into dueno, grupo using new.registro_id;
+  end if;
+  if dueno is null then raise exception 'El registro de la evidencia no existe'; end if;
+  if dueno <> new.user_id and not (new.tabla in ('liquidaciones', 'metas') and grupo is not null
+       and exists (select 1 from public.miembros where grupo_id = grupo and user_id = new.user_id)) then
+    raise exception 'Solo puedes adjuntar evidencias a tus propios registros';
+  end if;
+  new.grupo_id := grupo;
+  return new;
+end $$;
+drop trigger if exists validar_adjunto on public.adjuntos;
+create trigger validar_adjunto before insert or update on public.adjuntos
+  for each row execute function privado.validar_adjunto();
+
+-- Al cambiar con quién se comparte un registro, sus evidencias lo siguen
+create or replace function privado.sincronizar_adjuntos() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if new.grupo_id is distinct from old.grupo_id then
+    update public.adjuntos set grupo_id = new.grupo_id where tabla = tg_table_name and registro_id = new.id;
+  end if;
+  return new;
+end $$;
+do $$
+declare t text;
+begin
+  foreach t in array array['gastos','recurrentes','metas','eventos'] loop
+    execute format('drop trigger if exists sincronizar_adjuntos on public.%I', t);
+    execute format('create trigger sincronizar_adjuntos after update on public.%I
+      for each row execute function privado.sincronizar_adjuntos()', t);
+  end loop;
+end $$;
+
+-- Al borrar un registro se borran sus filas de evidencia
+create or replace function privado.borrar_adjuntos() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  delete from public.adjuntos where tabla = tg_table_name and registro_id = old.id;
+  return old;
+end $$;
+do $$
+declare t text;
+begin
+  foreach t in array array['ingresos','gastos','deudas','recurrentes','metas','eventos','liquidaciones'] loop
+    execute format('drop trigger if exists borrar_adjuntos on public.%I', t);
+    execute format('create trigger borrar_adjuntos after delete on public.%I
+      for each row execute function privado.borrar_adjuntos()', t);
+  end loop;
+end $$;
+
+revoke all on function privado.validar_gasto(), privado.validar_liquidacion(), privado.validar_adjunto(),
+  privado.sincronizar_adjuntos(), privado.borrar_adjuntos() from public, anon, authenticated;
 
 -- =====================================================================
 --  Seguridad por fila (RLS)
@@ -211,8 +401,8 @@ begin
   foreach t in array array['ingresos','gastos','deudas','recurrentes','metas','presupuestos',
                            'eventos','liquidaciones','adjuntos','grupos','miembros'] loop
     execute format('alter table public.%I enable row level security', t);
-    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
     execute format('revoke all on public.%I from anon', t);
+    execute format('grant select, insert, update, delete on public.%I to authenticated', t);
   end loop;
 
   -- Tablas siempre privadas
@@ -224,52 +414,73 @@ begin
   -- Tablas que pueden compartirse con un grupo
   foreach t in array array['gastos','recurrentes','metas','eventos','adjuntos'] loop
     execute format('create policy "ver" on public.%I for select to authenticated
-      using (user_id = (select auth.uid()) or (grupo_id is not null and public.es_miembro(grupo_id)))', t);
+      using (user_id = (select auth.uid()) or (grupo_id is not null and privado.es_miembro(grupo_id)))', t);
     execute format('create policy "crear" on public.%I for insert to authenticated
-      with check (user_id = (select auth.uid()) and (grupo_id is null or public.es_miembro(grupo_id)))', t);
+      with check (user_id = (select auth.uid()) and (grupo_id is null or privado.es_miembro(grupo_id)))', t);
     execute format('create policy "borrar" on public.%I for delete to authenticated
       using (user_id = (select auth.uid()))', t);
   end loop;
   foreach t in array array['gastos','recurrentes','eventos','adjuntos'] loop
     execute format('create policy "editar" on public.%I for update to authenticated
       using (user_id = (select auth.uid()))
-      with check (user_id = (select auth.uid()) and (grupo_id is null or public.es_miembro(grupo_id)))', t);
+      with check (user_id = (select auth.uid()) and (grupo_id is null or privado.es_miembro(grupo_id)))', t);
   end loop;
 end $$;
 
--- Metas compartidas: cualquier miembro puede aportar (editar)
+-- Grupos y miembros solo se crean mediante crear_grupo / unirse_grupo
+revoke insert on public.grupos, public.miembros from authenticated;
+-- Nadie puede cambiar a mano el dueño, el código ni el rol
+revoke update on public.grupos, public.miembros from authenticated;
+grant update (nombre) on public.grupos to authenticated;
+grant update (alias) on public.miembros to authenticated;
+
+-- Metas compartidas: cualquier miembro puede aportar (solo el monto ahorrado)
 create policy "editar" on public.metas for update to authenticated
-  using (user_id = (select auth.uid()) or (grupo_id is not null and public.es_miembro(grupo_id)))
-  with check (user_id = (select auth.uid()) or (grupo_id is not null and public.es_miembro(grupo_id)));
+  using (user_id = (select auth.uid()) or (grupo_id is not null and privado.es_miembro(grupo_id)))
+  with check (user_id = (select auth.uid()) or (grupo_id is not null and privado.es_miembro(grupo_id)));
+
+create or replace function privado.proteger_meta() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if old.user_id <> auth.uid() and (new.user_id, new.nombre, new.objetivo, new.fecha_limite, new.grupo_id, new.notas)
+     is distinct from (old.user_id, old.nombre, old.objetivo, old.fecha_limite, old.grupo_id, old.notas) then
+    raise exception 'Solo quien creó la meta puede cambiarla; tú puedes aportar';
+  end if;
+  return new;
+end $$;
+revoke all on function privado.proteger_meta() from public, anon, authenticated;
+drop trigger if exists proteger_meta on public.metas;
+create trigger proteger_meta before update on public.metas for each row execute function privado.proteger_meta();
 
 -- Pagos entre compañeros: los ve todo el grupo; los registra quien paga o quien recibe
 create policy "ver" on public.liquidaciones for select to authenticated
-  using (public.es_miembro(grupo_id));
+  using (privado.es_miembro(grupo_id));
 create policy "crear" on public.liquidaciones for insert to authenticated
-  with check (user_id = (select auth.uid()) and public.es_miembro(grupo_id)
+  with check (user_id = (select auth.uid()) and privado.es_miembro(grupo_id)
               and ((select auth.uid()) in (de, para)));
 create policy "editar" on public.liquidaciones for update to authenticated
   using (user_id = (select auth.uid()))
-  with check (user_id = (select auth.uid()) and public.es_miembro(grupo_id) and ((select auth.uid()) in (de, para)));
+  with check (user_id = (select auth.uid()) and privado.es_miembro(grupo_id) and ((select auth.uid()) in (de, para)));
 create policy "borrar" on public.liquidaciones for delete to authenticated
   using (user_id = (select auth.uid()));
 
--- Grupos: se crean y se unen con las funciones de arriba
 create policy "ver" on public.grupos for select to authenticated
-  using (creado_por = (select auth.uid()) or public.es_miembro(id));
+  using (creado_por = (select auth.uid()) or privado.es_miembro(id));
 create policy "editar" on public.grupos for update to authenticated
   using (creado_por = (select auth.uid())) with check (creado_por = (select auth.uid()));
 create policy "borrar" on public.grupos for delete to authenticated
   using (creado_por = (select auth.uid()));
 
--- Miembros: ves a tus compañeros; cambias tu nombre; sales tú o te saca quien creó el grupo
 create policy "ver" on public.miembros for select to authenticated
-  using (public.es_miembro(grupo_id));
+  using (privado.es_miembro(grupo_id));
 create policy "editar" on public.miembros for update to authenticated
   using (user_id = (select auth.uid())) with check (user_id = (select auth.uid()));
 create policy "borrar" on public.miembros for delete to authenticated
   using (user_id = (select auth.uid())
          or exists (select 1 from public.grupos g where g.id = grupo_id and g.creado_por = (select auth.uid())));
+
+-- La versión anterior exponía es_miembro en la API; ya no se usa
+drop function if exists public.es_miembro(uuid);
 
 -- Índices
 create index if not exists ingresos_fecha_idx    on public.ingresos (user_id, fecha);
@@ -290,13 +501,14 @@ create index if not exists miembros_user_idx     on public.miembros (user_id);
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values ('evidencias', 'evidencias', false, 10485760,
         array['image/jpeg','image/png','image/webp','application/pdf'])
-on conflict (id) do nothing;
+on conflict (id) do update set public = false, file_size_limit = 10485760,
+  allowed_mime_types = array['image/jpeg','image/png','image/webp','application/pdf'];
 
 drop policy if exists "evidencias_ver"    on storage.objects;
 drop policy if exists "evidencias_subir"  on storage.objects;
 drop policy if exists "evidencias_borrar" on storage.objects;
 
--- Ver: tus archivos, o los que están ligados a un registro que puedes ver
+-- Ver: tus archivos, o los ligados a un registro que puedes ver
 create policy "evidencias_ver" on storage.objects for select to authenticated
   using (bucket_id = 'evidencias' and (
     (storage.foldername(name))[1] = (select auth.uid())::text

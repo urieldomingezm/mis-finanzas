@@ -11,6 +11,10 @@
   <link rel="apple-touch-icon" href="icon.svg">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <!-- Seguridad: solo se ejecuta código de este mismo sitio; los datos solo viajan a Supabase -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; frame-src 'self' data: blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="stylesheet" href="vendor/driver-1.10.2.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -21,8 +25,8 @@
       <img src="icon.svg" alt="" width="56" height="56">
       <h1>Mis Finanzas</h1>
       <p class="muted">Cuánto ganas, en qué se te va y cuánto te falta para tus metas.</p>
-      <label>Correo<input type="email" name="email" required autocomplete="email"></label>
-      <label>Contraseña<input type="password" name="password" required minlength="6" autocomplete="current-password"></label>
+      <label>Correo<input type="email" name="email" required autocomplete="email" maxlength="254"></label>
+      <label>Contraseña<input type="password" name="password" required minlength="6" maxlength="72" autocomplete="current-password"></label>
       <button class="btn primary" data-modo="login">Entrar</button>
       <button class="btn ghost" data-modo="signup">Crear cuenta</button>
       <button type="submit" class="link-btn" id="btn-reset" data-modo="reset" formnovalidate>Olvidé mi contraseña</button>
@@ -37,6 +41,7 @@
       <div class="top-actions">
         <span id="user-chip" class="badge" hidden></span>
         <span id="demo-badge" class="badge warn" hidden title="Los datos se guardan solo en este navegador">Modo demo</span>
+        <button id="btn-tour" class="icon-btn ayuda" type="button" title="Guía de esta sección" aria-label="Guía de esta sección">?</button>
         <button id="btn-logout" class="btn ghost small" hidden>Salir</button>
       </div>
     </header>
@@ -98,8 +103,9 @@
 
   <div id="toast" role="status"></div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.js"></script>
+  <script src="vendor/supabase-2.118.0.js"></script>
+  <script src="vendor/chart-4.4.1.js"></script>
+  <script src="vendor/driver-1.10.2.js"></script>
   <script src="config.js"></script>
   <script src="app.js"></script>
 </body>

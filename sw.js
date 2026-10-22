@@ -1,7 +1,7 @@
 // Service worker: permite instalar la app y abrirla aunque falle la red.
 // Estrategia "red primero": siempre intenta traer la versión nueva.
-const CACHE = 'misfinanzas-v2';
-const ARCHIVOS = ['./', './index.html', './styles.css', './app.js', './config.js', './manifest.json', './icon.svg'];
+const CACHE = 'misfinanzas-v3';
+const ARCHIVOS = ['./', './index.html', './styles.css', './app.js', './config.js', './manifest.json', './icon.svg', './vendor/supabase-2.118.0.js', './vendor/chart-4.4.1.js', './vendor/driver-1.10.2.js', './vendor/driver-1.10.2.css'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARCHIVOS)));

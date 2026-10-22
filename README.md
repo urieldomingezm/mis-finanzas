@@ -76,6 +76,20 @@ Abre tu link en el celular:
 
 Si alguien sale del grupo deja de ver lo compartido. Lo que esa persona registró sigue visible para el grupo, así las cuentas no cambian.
 
+## Seguridad
+- **Privacidad por fila (RLS)** en todas las tablas: la base de datos misma impide ver o cambiar datos ajenos, aunque alguien modifique la app.
+- **Validaciones en la base**: en gastos compartidos solo se puede dividir entre miembros reales del grupo; las evidencias solo pueden ligarse a archivos de tu propia carpeta y a tus propios registros; nadie puede hacerse admin ni cambiar códigos; textos y montos tienen límites.
+- **Códigos de invitación** de 8 caracteres aleatorios y bloqueo de 1 hora tras 10 códigos incorrectos (anti fuerza bruta).
+- **Funciones internas** en un esquema privado que no se publica en la API.
+- **Evidencias privadas**: el almacén no es público y cada foto se abre con un enlace temporal de 1 hora.
+- **En el navegador**: las librerías van incluidas en el repo (carpeta `vendor/`, sin depender de CDNs), una política de seguridad (CSP) solo permite ejecutar código del propio sitio y hablar con Supabase, y la app no se deja incrustar en otras páginas.
+- La llave de `config.js` es pública por diseño; **nunca** pongas ahí la `service_role` / `secret`.
+
+**Recomendado en el panel de Supabase** (Authentication → Sign In / Providers → Email): deja activado *Confirm email* y sube *Minimum password length* a 8.
+
+## Guía dentro de la app
+La primera vez que entras aparece un recorrido por todas las secciones. Después, el botón **?** (arriba a la derecha) explica la sección donde estés. Usa [Driver.js](https://driverjs.com).
+
 ## Cómo sacarle provecho
 1. **Registra todo lo que entra** (cada pago semanal, ventas, extras).
 2. **Registra los gastos el mismo día**, aunque sean $20. Las fugas aparecen con los gastos pequeños.
@@ -95,6 +109,7 @@ Si alguien sale del grupo deja de ver lo compartido. Lo que esa persona registr�
 | `config.js` | Tus llaves de Supabase |
 | `supabase/schema.sql` | Tablas, seguridad entre usuarios y almacenamiento de evidencias |
 | `manifest.json`, `sw.js`, `icon.svg` | Para instalarla como app en el celular |
+| `vendor/` | Supabase JS, Chart.js y Driver.js (licencias MIT en `LICENSES.txt`) |
 
 ## Límites del plan gratis (a considerar)
 - Supabase gratis **pausa el proyecto tras ~1 semana sin uso**; si pasa, entra a supabase.com y dale *Restore*. Usándola seguido no ocurre.

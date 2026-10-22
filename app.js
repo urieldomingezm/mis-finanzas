@@ -4,6 +4,9 @@
    Sin frameworks ni compilación: funciona tal cual en GitHub Pages.
    ===================================================================== */
 
+/* ---------- Protección contra que metan la app dentro de otra página (clickjacking) ---------- */
+if (window.top !== window.self) { try { window.top.location = window.self.location; } catch { document.documentElement.innerHTML = ''; } }
+
 /* ---------- Configuración / conexión ---------- */
 const CFG  = window.APP_CONFIG || {};
 const DEMO = !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY || !window.supabase;
@@ -159,7 +162,7 @@ function derivar() {
 const rawRow = (t, id) => R[t].find(r => String(r.id) === String(id));
 const adjuntosDe = (t, id) => R.adjuntos.filter(a => a.tabla === t && a.registro_id === id);
 const clip = (t, id) => { const n = adjuntosDe(t, id).length; return n ? ` · 📎${n}` : ''; };
-const puedeEditar = (t, row) => !row || esMio(row) || (t === 'metas' && row.grupo_id && miembrosDe(row.grupo_id).some(m => m.user_id === ME));
+const puedeEditar = (t, row) => !row || esMio(row);   // en metas compartidas los demás solo pueden "Aportar"
 
 /* ---------- Definición de formularios ---------- */
 const num = (k, l, o = {}) => ({ k, l, t: 'number', ...o });
@@ -660,11 +663,11 @@ function vResumen() {
     </div>`;
 
   return `
-  <div class="grid cols-2">
+  <div class="grid cols-2" id="t-periodos">
     ${periodo(`Esta semana · ${fCorta(sw)} – ${fCorta(addDays(sw, 6))}`, iw, gw)}
     ${periodo(`Este mes · ${MESES[hoy.getMonth()]}`, im, gm)}
   </div>
-  <div class="grid cols-4 section">
+  <div class="grid cols-4 section" id="t-kpis">
     <div class="card kpi"><span>Deuda total</span><b class="${deuda > 0 ? 'neg' : ''}">${money(deuda)}</b><small>${S.deudas.filter(d => d.saldo > 0).length} activas</small></div>
     <div class="card kpi"><span>Gastos fijos / mes</span><b>${money(fijos)}</b><small>${money(fijos * 12)} al año</small></div>
     ${gs.length ? `<div class="card kpi clickable" data-act="tab" data-v="grupo"><span>Con tus roomies</span><b class="${saldoGrupos >= 0 ? 'pos' : 'neg'}">${saldoGrupos >= 0 ? 'Te deben ' : 'Debes '}${money(Math.abs(saldoGrupos))}</b><small>${gs.length} grupo${gs.length > 1 ? 's' : ''}</small></div>`
@@ -673,7 +676,7 @@ function vResumen() {
   </div>
 
   <div class="grid cols-2 section">
-    <div class="card">
+    <div class="card" id="t-grafica">
       <div class="section-head"><h2>Ingresos vs gastos</h2>
         <div class="seg"><button data-act="serie" data-v="semanas" class="${vistaSerie === 'semanas' ? 'on' : ''}">Semanas</button><button data-act="serie" data-v="meses" class="${vistaSerie === 'meses' ? 'on' : ''}">Meses</button></div>
       </div>
@@ -685,7 +688,7 @@ function vResumen() {
     </div>
   </div>
 
-  <div class="section">
+  <div class="section" id="t-fugas">
     <div class="section-head"><h2>Fugas detectadas</h2>${potencial > 0 ? `<span class="badge ok">Podrías liberar ≈ ${money(potencial)}/mes</span>` : ''}</div>
     <div class="list">${fugas.length ? fugas.map(x => `
       <div class="fuga ${x.nivel}"><div><b>${esc(x.titulo)}</b><p>${esc(x.detalle)}</p></div>
@@ -693,7 +696,7 @@ function vResumen() {
       : vacio('No hay fugas detectadas. Entre más registres, mejor te puedo avisar.')}</div>
   </div>
 
-  <div class="section">
+  <div class="section" id="t-proximos">
     <div class="section-head"><h2>Próximos 14 días</h2><span class="muted small">${money(sum(prox.filter(p => !p.info)))} por pagar</span></div>
     <div class="list">${prox.length ? prox.map(p => itemEvento(p, p.fecha)).join('')
       : vacio('Nada programado. Agrega deudas, gastos fijos o eventos para verlos aquí.')}</div>
@@ -729,7 +732,7 @@ function vMovimientos() {
     : esc(r.fuente || '');
   return `
   <div class="section-head">
-    <div class="seg"><button data-act="movtipo" data-v="gastos" class="${movTipo === 'gastos' ? 'on' : ''}">Gastos</button><button data-act="movtipo" data-v="ingresos" class="${movTipo === 'ingresos' ? 'on' : ''}">Ingresos</button></div>
+    <div class="seg" id="t-movtipo"><button data-act="movtipo" data-v="gastos" class="${movTipo === 'gastos' ? 'on' : ''}">Gastos</button><button data-act="movtipo" data-v="ingresos" class="${movTipo === 'ingresos' ? 'on' : ''}">Ingresos</button></div>
     <input type="month" id="mov-mes" value="${movMes}" style="width:auto;margin:0">
   </div>
   <div class="card kpi"><span>Total de ${movTipo} en ${MESES[Number(movMes.slice(5)) - 1]}${movTipo === 'gastos' ? ' (tu parte)' : ''}</span><b class="${movTipo === 'gastos' ? 'neg' : 'pos'}">${money(total)}</b><small>${rows.length} registros</small></div>
@@ -768,7 +771,7 @@ function vDeudas() {
     </div>`;
   };
   return `
-  <div class="grid cols-4">
+  <div class="grid cols-4" id="t-deudas-kpis">
     <div class="card kpi"><span>Debes en total</span><b class="neg">${money(total)}</b></div>
     <div class="card kpi"><span>Pagos al mes</span><b>${money(pagoMes)}</b></div>
     <div class="card kpi"><span>Intereses al mes ≈</span><b class="neg">${money(intMes)}</b><small>dinero que se va sin bajar la deuda</small></div>
@@ -784,7 +787,7 @@ function vFijos() {
   const total = rows.reduce((s, r) => s + mensualEq(r.monto, r.frecuencia), 0);
   const sinUso = rows.filter(r => r.en_uso === false).reduce((s, r) => s + mensualEq(r.monto, r.frecuencia), 0);
   return `
-  <div class="grid cols-4">
+  <div class="grid cols-4" id="t-fijos-kpis">
     <div class="card kpi"><span>Fijos al mes (tu parte)</span><b>${money(total)}</b></div>
     <div class="card kpi"><span>Al año</span><b>${money(total * 12)}</b></div>
     <div class="card kpi"><span>Pagas sin usar</span><b class="${sinUso ? 'neg' : ''}">${money(sinUso)}</b><small>al mes</small></div>
@@ -829,10 +832,10 @@ function vMetas() {
       <small>${money(g)} de ${money(p.limite_mensual)} · ${pp > 100 ? 'te pasaste' : 'quedan ' + money(p.limite_mensual - g)}</small></div><span class="amt">${pp}%</span></div>`;
   });
   return `
-  <div class="card kpi"><span>Tu sobrante promedio al mes (ingresos − gastos)</span><b class="${neto >= 0 ? 'pos' : 'neg'}">${money(neto)}</b><small>Con esto se calcula cuándo llegas a cada meta.</small></div>
-  <div class="section"><div class="section-head"><h2>Metas a largo plazo</h2><button class="btn ghost small" data-act="nuevo" data-t="metas">+ Meta</button></div>
+  <div class="card kpi" id="t-sobrante"><span>Tu sobrante promedio al mes (ingresos − gastos)</span><b class="${neto >= 0 ? 'pos' : 'neg'}">${money(neto)}</b><small>Con esto se calcula cuándo llegas a cada meta.</small></div>
+  <div class="section" id="t-metas"><div class="section-head"><h2>Metas a largo plazo</h2><button class="btn ghost small" data-act="nuevo" data-t="metas">+ Meta</button></div>
     <div class="grid cols-2">${metas.join('') || vacio('Crea tu primera meta: fondo de emergencia (3 meses de gastos), algo que quieras comprar, un viaje…', 'metas')}</div></div>
-  <div class="section"><div class="section-head"><h2>Presupuestos de ${MESES[new Date().getMonth()]}</h2><button class="btn ghost small" data-act="nuevo" data-t="presupuestos">+ Presupuesto</button></div>
+  <div class="section" id="t-presupuestos"><div class="section-head"><h2>Presupuestos de ${MESES[new Date().getMonth()]}</h2><button class="btn ghost small" data-act="nuevo" data-t="presupuestos">+ Presupuesto</button></div>
     <div class="list">${pres.join('') || vacio('Ponle un tope mensual a comida, salidas, ropa… y te aviso cuando te pases.')}</div></div>`;
 }
 
@@ -866,7 +869,7 @@ function vAgenda() {
       <div class="cal-head"><button class="btn ghost small" data-act="mes" data-v="-1" aria-label="Mes anterior">‹</button>
         <h2>${MESES[agM]} ${agY}</h2>
         <div class="actions"><button class="btn ghost small" data-act="mes" data-v="0">Hoy</button><button class="btn ghost small" data-act="mes" data-v="1" aria-label="Mes siguiente">›</button></div></div>
-      <div class="cal">${celdas}</div>
+      <div class="cal" id="t-cal">${celdas}</div>
       <div class="leyenda"><span><i class="t-deuda"></i>Deuda</span><span><i class="t-fijo"></i>Fijo</span><span><i class="t-evento"></i>Evento</span><span><i class="t-meta"></i>Meta</span><span><i class="t-gasto"></i>Gasto</span><span><i class="t-ingreso"></i>Ingreso</span></div>
     </div>
     <div>
@@ -913,7 +916,7 @@ function vGrupo() {
         <span class="amt small ${v > 0 ? 'pos' : v < 0 ? 'neg' : 'muted'}">${v > 0 ? 'le deben ' + money(v) : v < 0 ? 'debe ' + money(-v) : 'a mano'}</span></div>`; }).join('')}</div>
       <div class="actions"><button class="btn ghost small" data-act="mi-alias" data-id="${yo?.id || ''}">Cambiar mi nombre</button><button class="btn ghost small danger" data-act="salir-grupo">Salir del grupo</button>${DEMO ? '' : '<button class="btn ghost small" data-act="actualizar">↻ Actualizar</button>'}</div>
     </div>
-    <div class="card">
+    <div class="card" id="t-amano">
       <h2>Para quedar a mano</h2>
       <div class="list" style="margin-top:12px">${pagos.length ? pagos.map(p => `
         <div class="pago-sug"><div><b>${esc(aliasDe(p.de, g.id))}</b> → <b>${esc(aliasDe(p.para, g.id))}</b></div><b class="amt">${money(p.monto)}</b>
@@ -924,7 +927,7 @@ function vGrupo() {
     </div>
   </div>
 
-  <div class="section"><div class="section-head"><h2>Gastos compartidos · ${MESES[sm.getMonth()]}</h2><span class="muted small">Total ${money(sum(delMes))} · tu parte ${money(delMes.reduce((s, x) => s + miParte(x), 0))}</span></div>
+  <div class="section" id="t-gastos-comp"><div class="section-head"><h2>Gastos compartidos · ${MESES[sm.getMonth()]}</h2><span class="muted small">Total ${money(sum(delMes))} · tu parte ${money(delMes.reduce((s, x) => s + miParte(x), 0))}</span></div>
     <div class="list">${gastosG.slice(0, 30).map(x => `
       <button class="item" data-act="edit" data-t="gastos" data-id="${x.id}"><div class="main"><b>${esc(x.concepto)}</b>
         <small>${fLarga(x.fecha)} · pagó ${esc(aliasDe(x.pagado_por || x.user_id, g.id))} · entre ${participantesDe(x).length} · tu parte ${money(miParte(x))}${clip('gastos', x.id)}</small></div>
@@ -932,7 +935,7 @@ function vGrupo() {
     ${gastosG.length ? `<button class="btn ghost small" data-act="nuevo" data-t="gastos" data-g="${g.id}">+ Gasto compartido</button>` : ''}</div></div>
 
   <div class="grid cols-2 section">
-    <div><div class="section-head"><h2>Fijos del grupo</h2><button class="btn ghost small" data-act="nuevo" data-t="recurrentes" data-g="${g.id}">+ Fijo</button></div>
+    <div id="t-fijos-grupo"><div class="section-head"><h2>Fijos del grupo</h2><button class="btn ghost small" data-act="nuevo" data-t="recurrentes" data-g="${g.id}">+ Fijo</button></div>
       <div class="list">${fijosG.map(r => { const prox = proximaFecha(r.proximo_cobro, r.frecuencia); return `
         <div class="item" data-act="edit" data-t="recurrentes" data-id="${r.id}"><div class="main"><b>${esc(r.nombre)}</b>
           <small>${money(r.monto)} ${esc(r.frecuencia)} · ${money(parteFijo(r))} c/u · próximo ${prox ? fCorta(prox) : '—'}</small></div>
@@ -975,7 +978,8 @@ const grupoApi = {
   async unirse(codigo, alias) {
     if (DEMO) throw new Error('En modo demo no hay otros usuarios. Configura Supabase para unirte a grupos reales.');
     const { data, error } = await sb.rpc('unirse_grupo', { p_codigo: codigo, p_alias: alias });
-    if (error) throw new Error(error.message.includes('no válido') ? 'Ese código no existe. Revisa que esté bien escrito.' : error.message);
+    if (error) throw error;
+    if (!data) throw new Error('Ese código no existe. Revisa que esté bien escrito.');
     return data;
   }
 };
@@ -1118,6 +1122,94 @@ async function cargarEjemplo() {
   await refrescar(); toast('Datos de ejemplo cargados');
 }
 
+/* ---------- Tours guiados (Driver.js) ---------- */
+const P = (element, title, description, side) => ({ element, title, description, side });
+const TOURS = {
+  bienvenida: [
+    P(null, '¡Bienvenido a Mis Finanzas! 👋', 'Te enseño en un minuto dónde está cada cosa. Puedes salir cuando quieras con la ✕ o la tecla Esc.'),
+    P('#tabs [data-tab="resumen"]', 'Inicio', 'Lo que ganas y gastas esta semana y este mes, las fugas de dinero que detecto y lo que viene por pagar.'),
+    P('#tabs [data-tab="movimientos"]', 'Movimientos', 'Todos tus ingresos y gastos, mes por mes y agrupados por semana.'),
+    P('#tabs [data-tab="deudas"]', 'Deudas', 'Apps de préstamo, tarjetas y tiendas: cuánto debes, cuánto pagas de intereses y cuál conviene liquidar primero. Siempre son privadas.'),
+    P('#tabs [data-tab="fijos"]', 'Gastos fijos', 'Renta, servicios y suscripciones. Marca lo que pagas y no usas para detectar fugas.'),
+    P('#tabs [data-tab="metas"]', 'Metas', 'Lo que quieres lograr a largo plazo y cuánto ahorrar cada semana para llegar a tiempo.'),
+    P('#tabs [data-tab="agenda"]', 'Calendario', 'Todos tus pagos y eventos del mes. Pásalos a Google Calendar para que te lleguen recordatorios.'),
+    P('#tabs [data-tab="grupo"]', 'Grupo', 'Comparte gastos con tus roomies: la app calcula quién le debe a quién. Tú decides qué compartir.'),
+    P('#fab', 'Botón +', 'Agrega lo que necesites. Cambia según la sección donde estés.', 'left'),
+    P('#btn-tour', '¿Dudas?', 'Toca este botón en cualquier sección y te explico lo que hay en ella.', 'bottom')
+  ],
+  resumen: [
+    P('#t-periodos', 'Tu semana y tu mes', 'Ingresos, gastos (solo tu parte de lo compartido) y lo que te queda.'),
+    P('#t-kpis', 'Indicadores clave', 'Deuda total, cuánto te cuestan los fijos y tu tasa de ahorro. La meta sana es ahorrar 10–20% de lo que ganas.'),
+    P('#t-grafica', 'Tendencia', 'Compara ingresos contra gastos por semana o por mes.'),
+    P('#t-fugas', 'Fugas detectadas', 'Aquí te aviso dónde se te escapa el dinero y cuánto podrías ahorrar cada mes.'),
+    P('#t-proximos', 'Próximos 14 días', 'Pagos y eventos que vienen. Con +📅 los pasas a tu Google Calendar.')
+  ],
+  movimientos: [
+    P('#t-movtipo', 'Gastos o ingresos', 'Cambia entre lo que sale y lo que entra.'),
+    P('#mov-mes', 'Mes', 'Elige qué mes quieres revisar.'),
+    P('#view .item', 'Cada registro', 'Tócalo para editarlo o ver su evidencia (📎). Si es compartido, verás quién pagó y tu parte.'),
+    P('#fab', 'Agregar', 'Registra un gasto o ingreso. Puedes tomar foto del ticket como evidencia.', 'left')
+  ],
+  deudas: [
+    P('#t-deudas-kpis', 'Tus deudas en números', 'Lo que debes, lo que pagas al mes y lo que se va solo en intereses.'),
+    P('#view .dcard', 'Cada deuda', 'Saldo, próximo pago, intereses y en cuánto tiempo la terminas con tu pago actual. Están ordenadas de la más cara a la más barata.'),
+    P('#view [data-act="abonar"]', 'Abonar', 'Registra un pago: baja el saldo y, si quieres, lo cuenta como gasto del mes.'),
+    P('#fab', 'Nueva deuda', 'Agrega una deuda con su tasa o CAT (viene en tu contrato o en la app).', 'left')
+  ],
+  fijos: [
+    P('#t-fijos-kpis', 'Lo que pagas cada mes', 'Total de tus gastos fijos, al mes y al año, y lo que pagas sin usar.'),
+    P('#view [data-act="uso"]', '¿Lo usas?', 'Toca para marcar "No lo uso". Aparecerá como fuga en tu inicio.'),
+    P('#fab', 'Nuevo fijo', 'Renta, internet, streaming, gimnasio… Si es compartido, elige el grupo y se divide solo.', 'left')
+  ],
+  metas: [
+    P('#t-sobrante', 'Tu sobrante', 'Lo que te queda en promedio cada mes. Con esto calculo cuándo llegas a cada meta.'),
+    P('#t-metas', 'Metas', 'Cuánto llevas, cuánto ahorrar por mes y por semana, y si vas a tiempo.'),
+    P('#t-presupuestos', 'Presupuestos', 'Ponle tope mensual a una categoría y te aviso cuando te pases.')
+  ],
+  agenda: [
+    P('#t-cal', 'Tu mes', 'Los puntos de colores marcan deudas, fijos, eventos, metas y lo que registraste ese día. Toca un día para ver su detalle.'),
+    P('#view [data-act="mes"][data-v="0"]', 'Hoy', 'Regresa al día de hoy.'),
+    P('#view [data-act="nuevo-evento"]', 'Nuevo evento', 'Recordatorios, cobros o pagos, con hora y repetición. Puedes compartirlos con tu grupo.'),
+    P('#view .gcal', 'Google Calendar', 'Pasa cualquier evento a tu Google Calendar para recibir la notificación en tu celular.')
+  ],
+  grupo_sin: [
+    P('#view .intro', 'Compartir con roomies', 'Cada quien con su cuenta. Solo se comparte lo que tú eliges.'),
+    P('#view [data-act="crear-grupo"]', 'Crear grupo', 'Crea el grupo del depa y te doy un código para invitar.'),
+    P('#view [data-act="unirse-grupo"]', 'Unirte', 'Si te pasaron un código, entra aquí.')
+  ],
+  grupo_con: [
+    P('#view .codigo', 'Invitar', 'Comparte el código por WhatsApp con el botón Invitar.'),
+    P('#view .members', 'Miembros', 'Quién está en el grupo y cuánto debe o le deben.'),
+    P('#t-amano', 'Para quedar a mano', 'El mínimo de pagos para quedar parejos. Al transferir, registra el pago con su comprobante.'),
+    P('#t-gastos-comp', 'Gastos compartidos', 'Quién pagó y cuánto le toca a cada quien. Toca uno para ver su evidencia.'),
+    P('#t-fijos-grupo', 'Fijos del grupo', 'Renta, internet, luz… Cuando se pague, toca "Ya se pagó".')
+  ]
+};
+function iniciarTour(nombre, alTerminar) {
+  const D = window.driver?.js?.driver;
+  if (!D) return;
+  const visible = el => el && el.getClientRects().length > 0;
+  if (nombre === 'grupo') nombre = misGrupos().length ? 'grupo_con' : 'grupo_sin';
+  const pasos = (TOURS[nombre] || []).filter(p => !p.element || visible(document.querySelector(p.element)));
+  if (!pasos.length) return;
+  const d = D({
+    showProgress: pasos.length > 1, allowClose: true, smoothScroll: true, overlayOpacity: 0.55,
+    stagePadding: 6, stageRadius: 12, popoverClass: 'tour',
+    nextBtnText: 'Siguiente', prevBtnText: 'Atrás', doneBtnText: '¡Listo!', progressText: '{{current}} de {{total}}',
+    steps: pasos.map(p => ({ element: p.element || undefined, popover: { title: p.title, description: p.description, side: p.side, align: 'start' } })),
+    onDestroyed: () => alTerminar?.()
+  });
+  d.drive();
+}
+const claveTour = () => 'misfinanzas_tour_' + ME;
+function tourBienvenida() {
+  let visto = false;
+  try { visto = localStorage.getItem(claveTour()) === '1'; } catch { /* sin almacenamiento */ }
+  if (visto) return;
+  setTimeout(() => iniciarTour('bienvenida', () => { try { localStorage.setItem(claveTour(), '1'); } catch { /* nada */ } }), 600);
+}
+$('#btn-tour').addEventListener('click', () => iniciarTour(tab));
+
 /* ---------- Arranque y sesión ---------- */
 let usuario = null;
 async function mostrarApp() {
@@ -1127,6 +1219,7 @@ async function mostrarApp() {
   $('#view').innerHTML = '<div class="empty">Cargando…</div>';
   try { await cargar(); } catch (err) { toast('No se pudieron cargar tus datos: ' + err.message); }
   render();
+  tourBienvenida();
 }
 function mostrarLogin() { $('#app').hidden = true; $('#login').hidden = false; }
 
@@ -1137,6 +1230,7 @@ $('#login-form').addEventListener('submit', async e => {
   msg.textContent = 'Un momento…';
   try {
     if (modo === 'signup') {
+      if (String(password).length < 8) { msg.textContent = 'Usa una contraseña de al menos 8 caracteres.'; return; }
       const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
       if (error) throw error;
       msg.textContent = data.session ? '' : 'Cuenta creada. Revisa tu correo para confirmarla y luego entra.';
