@@ -12,6 +12,6 @@
 //     políticas RLS del archivo supabase/schema.sql.
 // =====================================================================
 window.APP_CONFIG = {
-  SUPABASE_URL: "",       // ej. "https://abcdxyz.supabase.co"
-  SUPABASE_ANON_KEY: ""   // ej. "eyJhbGciOi..." o "sb_publishable_..."
+  SUPABASE_URL: "https://pdmcxbdbtbykpfofmxrn.supabase.co",
+  SUPABASE_ANON_KEY: "sb_publishable_DzFbyUJFS4GDxnOo9iZSFg_wSg8aUFN"
 };
