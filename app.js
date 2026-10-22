@@ -307,8 +307,8 @@ function campo(f, v) {
     default: {
       const extra = f.t === 'number' ? `step="${f.step || '0.01'}" min="0" ${f.max ? `max="${f.max}"` : ''} inputmode="decimal"` : '';
       const val = f.t === 'time' && v ? String(v).slice(0, 5) : v;
-      const largo = f.t === 'text' ? `maxlength="${f.k === 'notas' ? 1000 : 120}"` : '';
-      return `<label>${f.l}<input type="${f.t}" name="${f.k}" value="${esc(val ?? '')}" ${req} ${extra} ${largo} placeholder="${esc(f.ph || '')}"></label>`;
+      const largo = f.t === 'text' ? `maxlength="${f.k === 'notas' ? 1000 : 120}" autocapitalize="sentences"` : '';
+      return `<label>${f.l}<input type="${f.t}" name="${f.k}" value="${esc(val ?? '')}" ${req} ${extra} ${largo} enterkeyhint="next" placeholder="${esc(f.ph || '')}"></label>`;
     }
   }
 }
@@ -447,13 +447,25 @@ function abrirForm(tipo, row = null, extra = {}) {
       const ex = form.querySelector('#adj-exist'); if (ex && row) pintarAdjuntos(ex, adjuntosDe(tipo, row.id), !ro);
       if (ro) { form.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = true; }); form.querySelector('.file-btn')?.setAttribute('hidden', ''); }
       form.addEventListener('submit', e => { e.preventDefault(); if (!ro) Swal.clickConfirm(); });
-      form.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.tagName === 'INPUT' && e.target.type !== 'file') { e.preventDefault(); if (!ro) Swal.clickConfirm(); } });
+      // Enter / "Siguiente" del teclado: pasa al siguiente campo; en el último, avanza o guarda
+      form.addEventListener('keydown', e => {
+        if (e.key !== 'Enter' || e.target.tagName !== 'INPUT' || ['file', 'checkbox'].includes(e.target.type)) return;
+        e.preventDefault(); if (ro) return;
+        const panel = e.target.closest('.wizard-panel');
+        const campos = [...panel.querySelectorAll('input, select, textarea')].filter(el => !el.closest('[hidden]') && el.type !== 'hidden' && el.type !== 'file' && !el.disabled);
+        const sig = campos[campos.indexOf(e.target) + 1];
+        if (sig) sig.focus(); else Swal.clickConfirm();
+      });
       form.addEventListener('change', e => {
         if (e.target.name === 'grupo_id') actualizarGrupoCampos(true);
         if (e.target.closest('.chips-field')) actualizarParte();
         if (e.target.name === '_adjuntos') form.querySelector('#adj-nuevos').innerHTML = [...e.target.files].map(f => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>'}</div>`).join('');
       });
       form.addEventListener('input', e => { if (e.target.name === 'monto') actualizarParte(); });
+      form.addEventListener('focusin', e => {
+        if (!(NATIVO || matchMedia('(width < 40rem)').matches) || !e.target.matches('input, select, textarea')) return;
+        setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 320);
+      });
       form.querySelector('[data-act="eliminar-registro"]')?.addEventListener('click', async () => {
         const borrador = recolectar(def);
         const ok = await confirmar({ titulo: '¿Eliminar este registro?', texto: 'También se borran sus evidencias. No se puede deshacer.', ok: 'Sí, eliminar', peligro: true });
