@@ -14,21 +14,22 @@
   <!-- Seguridad: solo se ejecuta código de este mismo sitio; los datos solo viajan a Supabase -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co; font-src 'self'; frame-src 'self' data: blob:; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
   <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="stylesheet" href="vendor/bootstrap-icons/bootstrap-icons.min.css">
   <link rel="stylesheet" href="vendor/driver-1.10.2.css">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
 
   <!-- ============ LOGIN ============ -->
-  <section id="login" hidden>
+  <section id="login" class="grid min-h-dvh place-items-center p-4" hidden>
     <form id="login-form" class="login-card">
-      <img src="icon.svg" alt="" width="56" height="56">
-      <h1>Mis Finanzas</h1>
+      <img src="icon.svg" alt="" width="56" height="56" class="mx-auto">
+      <h1 class="text-2xl">Mis Finanzas</h1>
       <p class="muted">Cuánto ganas, en qué se te va y cuánto te falta para tus metas.</p>
       <label>Correo<input type="email" name="email" required autocomplete="email" maxlength="254"></label>
       <label>Contraseña<input type="password" name="password" required minlength="6" maxlength="72" autocomplete="current-password"></label>
-      <button class="btn primary" data-modo="login">Entrar</button>
-      <button class="btn ghost" data-modo="signup">Crear cuenta</button>
+      <button class="btn primary" data-modo="login"><i class="bi bi-box-arrow-in-right"></i>Entrar</button>
+      <button class="btn ghost" data-modo="signup"><i class="bi bi-person-plus"></i>Crear cuenta</button>
       <button type="submit" class="link-btn" id="btn-reset" data-modo="reset" formnovalidate>Olvidé mi contraseña</button>
       <p id="login-msg" class="muted small" role="status"></p>
     </form>
@@ -38,67 +39,68 @@
   <div id="app" hidden>
     <header id="topbar">
       <div class="brand"><img src="icon.svg" alt="" width="28" height="28"><span>Mis Finanzas</span></div>
-      <div class="top-actions">
+      <div class="flex items-center gap-2">
         <span id="user-chip" class="badge" hidden></span>
         <span id="demo-badge" class="badge warn" hidden title="Los datos se guardan solo en este navegador">Modo demo</span>
-        <button id="btn-tour" class="icon-btn ayuda" type="button" title="Guía de esta sección" aria-label="Guía de esta sección">?</button>
-        <button id="btn-logout" class="btn ghost small" hidden>Salir</button>
+        <button id="btn-tour" class="icon-btn ayuda" type="button" title="Guía de esta sección" aria-label="Guía de esta sección"><i class="bi bi-question-lg"></i></button>
+        <button id="btn-logout" class="btn ghost small" title="Cerrar sesión" hidden><i class="bi bi-box-arrow-right"></i><span class="hidden sm:inline">Salir</span></button>
       </div>
     </header>
 
     <nav id="tabs" aria-label="Secciones">
-      <button data-tab="resumen" class="active"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zM13 21h8V11h-8zM3 21h8v-6H3zM13 3v6h8V3z"/></svg><span>Inicio</span></button>
-      <button data-tab="movimientos"><svg viewBox="0 0 24 24"><path d="M7 4v13m0 0-3-3m3 3 3-3M17 20V7m0 0-3 3m3-3 3 3"/></svg><span class="l">Movimientos</span><span class="s">Movs</span></button>
-      <button data-tab="deudas"><svg viewBox="0 0 24 24"><path d="M3 7h18v10H3zM3 11h18M7 15h3"/></svg><span>Deudas</span></button>
-      <button data-tab="fijos"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 1 14-5.3M20 12a8 8 0 0 1-14 5.3M18 3v4h-4M6 21v-4h4"/></svg><span>Fijos</span></button>
-      <button data-tab="metas"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="4"/><circle cx="12" cy="12" r=".6"/></svg><span>Metas</span></button>
-      <button data-tab="agenda"><svg viewBox="0 0 24 24"><path d="M4 6h16v14H4zM4 10h16M8 3v4M16 3v4"/></svg><span class="l">Calendario</span><span class="s">Agenda</span></button>
-      <button data-tab="grupo"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M16 4.5a3.2 3.2 0 0 1 0 6.4M18 14.3c1.8.8 3 2.6 3 5.7"/></svg><span>Grupo</span></button>
+      <button data-tab="resumen" class="active"><i class="bi bi-house-door"></i><span>Inicio</span></button>
+      <button data-tab="movimientos"><i class="bi bi-arrow-left-right"></i><span class="l">Movimientos</span><span class="s">Movs</span></button>
+      <button data-tab="deudas"><i class="bi bi-credit-card-2-front"></i><span>Deudas</span></button>
+      <button data-tab="fijos"><i class="bi bi-arrow-repeat"></i><span>Fijos</span></button>
+      <button data-tab="metas"><i class="bi bi-bullseye"></i><span>Metas</span></button>
+      <button data-tab="agenda"><i class="bi bi-calendar3"></i><span class="l">Calendario</span><span class="s">Agenda</span></button>
+      <button data-tab="grupo"><i class="bi bi-people"></i><span>Grupo</span></button>
     </nav>
 
     <div id="demo-banner" class="banner" hidden>
-      <span>Estás en <b>modo demo</b>: tus datos viven solo en este navegador. Configura Supabase en <code>config.js</code> para tenerlos en la nube y en todos tus dispositivos.</span>
+      <i class="bi bi-info-circle text-warn"></i>
+      <span class="flex-1">Estás en <b>modo demo</b>: tus datos viven solo en este navegador. Configura Supabase en <code>config.js</code> para tenerlos en la nube y en todos tus dispositivos.</span>
       <button class="btn ghost small" id="btn-ejemplo">Cargar datos de ejemplo</button>
     </div>
 
     <main id="view" aria-live="polite"></main>
 
-    <button id="fab" aria-label="Agregar">+</button>
+    <button id="fab" aria-label="Agregar"><i class="bi bi-plus-lg"></i></button>
   </div>
 
   <!-- ============ Formulario genérico ============ -->
   <dialog id="modal">
     <form id="modal-form">
-      <header><h2 id="modal-title">Nuevo</h2><button type="button" class="icon-btn" data-close aria-label="Cerrar">×</button></header>
+      <header><h2 id="modal-title">Nuevo</h2><button type="button" class="icon-btn" data-close aria-label="Cerrar"><i class="bi bi-x-lg"></i></button></header>
       <div id="modal-body" class="form-grid"></div>
       <footer>
-        <button type="button" id="modal-delete" class="btn danger ghost">Eliminar</button>
+        <button type="button" id="modal-delete" class="btn danger ghost"><i class="bi bi-trash3"></i><span class="hidden sm:inline">Eliminar</span></button>
         <span class="spacer"></span>
         <button type="button" class="btn ghost" data-close>Cancelar</button>
-        <button type="submit" class="btn primary" id="modal-save">Guardar</button>
+        <button type="submit" class="btn primary" id="modal-save"><i class="bi bi-check2"></i>Guardar</button>
       </footer>
     </form>
   </dialog>
 
   <!-- ============ Menú rápido ============ -->
-  <dialog id="quick">
+  <dialog id="quick" class="p-4">
     <div class="quick-grid">
-      <button data-q="gastos" class="q neg">Gasto</button>
-      <button data-q="ingresos" class="q pos">Ingreso</button>
-      <button data-q="deudas" class="q">Deuda</button>
-      <button data-q="recurrentes" class="q">Gasto fijo</button>
-      <button data-q="metas" class="q">Meta</button>
-      <button data-q="presupuestos" class="q">Presupuesto</button>
-      <button data-q="eventos" class="q">Evento</button>
+      <button data-q="gastos" class="q neg"><i class="bi bi-arrow-up-circle"></i>Gasto</button>
+      <button data-q="ingresos" class="q pos"><i class="bi bi-arrow-down-circle"></i>Ingreso</button>
+      <button data-q="deudas" class="q"><i class="bi bi-credit-card-2-front"></i>Deuda</button>
+      <button data-q="recurrentes" class="q"><i class="bi bi-arrow-repeat"></i>Gasto fijo</button>
+      <button data-q="metas" class="q"><i class="bi bi-bullseye"></i>Meta</button>
+      <button data-q="presupuestos" class="q"><i class="bi bi-wallet2"></i>Presupuesto</button>
+      <button data-q="eventos" class="q"><i class="bi bi-calendar-event"></i>Evento</button>
     </div>
     <button class="btn ghost block" data-close>Cancelar</button>
   </dialog>
 
   <!-- ============ Visor de evidencias ============ -->
   <dialog id="visor">
-    <div class="visor-head"><small id="visor-info" class="muted"></small><button type="button" class="icon-btn" data-close aria-label="Cerrar">×</button></div>
+    <div class="visor-head"><small id="visor-info" class="muted"></small><button type="button" class="icon-btn" data-close aria-label="Cerrar"><i class="bi bi-x-lg"></i></button></div>
     <img id="visor-img" alt="">
-    <div class="visor-foot"><a id="visor-abrir" class="btn ghost small" target="_blank" rel="noopener">Abrir original</a></div>
+    <div class="visor-foot"><a id="visor-abrir" class="btn ghost small" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i>Abrir original</a></div>
   </dialog>
 
   <div id="toast" role="status"></div>

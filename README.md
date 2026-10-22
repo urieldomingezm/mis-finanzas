@@ -104,12 +104,23 @@ La primera vez que entras aparece un recorrido por todas las secciones. Después
 | Archivo | Qué es |
 |---|---|
 | `index.html` | Estructura de la app |
-| `styles.css` | Diseño responsivo (claro/oscuro automático) |
+| `src/app.css` | Diseño con **Tailwind CSS** (fuente). Claro/oscuro automático, responsivo para celular, tablet y escritorio |
+| `css/app.css` | CSS ya compilado que usa la página (no lo edites a mano) |
+| `package.json` | Comandos para recompilar el CSS |
 | `app.js` | Toda la lógica: datos, cálculos, fugas, gráficas, calendario, grupos, evidencias |
 | `config.js` | Tus llaves de Supabase |
 | `supabase/schema.sql` | Tablas, seguridad entre usuarios y almacenamiento de evidencias |
 | `manifest.json`, `sw.js`, `icon.svg` | Para instalarla como app en el celular |
-| `vendor/` | Supabase JS, Chart.js y Driver.js (licencias MIT en `LICENSES.txt`) |
+| `vendor/` | Supabase JS, Chart.js, Driver.js y Bootstrap Icons (licencias MIT en `LICENSES.txt`) |
+
+## Editar el diseño (Tailwind CSS)
+La página usa `css/app.css`, que se genera desde `src/app.css` con Tailwind. Si cambias clases en `index.html` o `app.js`, o estilos en `src/app.css`, recompila:
+```bash
+npm install        # solo la primera vez (necesitas Node.js 20+)
+npm run build      # genera css/app.css
+npm run dev        # o déjalo recompilando solo mientras editas
+```
+Luego sube `css/app.css` junto con tus cambios. Los íconos son de [Bootstrap Icons](https://icons.getbootstrap.com): `<i class="bi bi-nombre-del-icono"></i>`.
 
 ## Límites del plan gratis (a considerar)
 - Supabase gratis **pausa el proyecto tras ~1 semana sin uso**; si pasa, entra a supabase.com y dale *Restore*. Usándola seguido no ocurre.

@@ -1,0 +1,296 @@
+/* =====================================================================
+   Mis Finanzas — estilos con Tailwind CSS v4
+   Este es el archivo FUENTE. El que usa la página es css/app.css,
+   generado con:   npm run build     (o  npm run dev  mientras editas)
+   ===================================================================== */
+@import "tailwindcss";
+@source "../index.html";
+@source "../app.js";
+
+/* ---------- Paleta (cambia sola entre claro y oscuro) ---------- */
+:root {
+  --bg: #f5f6f2; --surface: #ffffff; --surface-2: #eef0ea; --text: #18201b; --muted: #5f685f;
+  --line: #dde2d8; --brand: #1f7a55; --brand-ink: #ffffff; --brand-soft: #e2f1e9;
+  --ok: #1f7a55; --bad: #c2410c; --warn: #a86a10; --info: #2f6fa3; --c-evento: #7b4fa8;
+  --c1: #1f7a55; --c2: #c2410c; --c3: #2f6fa3; --c4: #a86a10; --c5: #7b4fa8; --c6: #5f685f;
+  --shadow: 0 1px 2px rgb(0 0 0 / .04), 0 6px 18px rgb(20 40 30 / .06);
+  --nav-h: 64px; --top-h: 60px;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0e1210; --surface: #161c18; --surface-2: #1e2621; --text: #e6ece6; --muted: #98a398;
+    --line: #28312b; --brand: #43b883; --brand-ink: #07130d; --brand-soft: #173326;
+    --ok: #43b883; --bad: #f08a55; --warn: #e2b14d; --info: #6eaade; --c-evento: #b38ae0;
+    --c1: #43b883; --c2: #f08a55; --c3: #6eaade; --c4: #e2b14d; --c5: #b38ae0; --c6: #98a398;
+    --shadow: none;
+  }
+}
+
+/* Colores disponibles como clases de Tailwind: bg-surface, text-muted, border-line, text-brand… */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-ink: var(--brand-ink);
+  --color-brand-soft: var(--brand-soft);
+  --color-ok: var(--ok);
+  --color-bad: var(--bad);
+  --color-warn: var(--warn);
+  --color-info: var(--info);
+  --color-evento: var(--c-evento);
+  --shadow-suave: var(--shadow);
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+}
+
+/* ---------- Base ---------- */
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body { @apply bg-bg text-ink font-sans text-[15px] leading-normal antialiased; }
+  h1, h2, h3 { @apply leading-tight font-bold; }
+  h2 { @apply text-[1.05rem]; }
+  code { @apply bg-surface-2 rounded-md px-1.5 py-px text-[.88em]; }
+  button { @apply cursor-pointer; }
+  input, select, textarea {
+    @apply w-full min-h-11 mt-1 rounded-[10px] border border-line bg-surface px-3 py-2.5 text-ink;
+  }
+  input:focus, select:focus, textarea:focus { @apply outline-2 outline-brand border-transparent; }
+  input:disabled, select:disabled { @apply opacity-80; }
+  label { @apply block text-sm font-medium text-muted; }
+  fieldset { @apply border border-line rounded-[10px] px-3 py-2.5 min-w-0; }
+  legend { @apply text-sm text-muted font-medium px-1; }
+  dialog { @apply m-auto p-0 border-0 rounded-2xl bg-surface text-ink shadow-2xl w-[min(520px,calc(100vw-24px))] max-h-[calc(100dvh-24px)]; }
+  dialog::backdrop { background: rgb(10 16 12 / .45); }
+  .bi { @apply leading-none; }
+}
+
+/* ---------- Componentes ---------- */
+@layer components {
+  .muted { @apply text-muted; }
+  .small { @apply text-sm; }
+  .pos { @apply text-ok; }
+  .neg { @apply text-bad; }
+
+  /* Botones */
+  .btn { @apply inline-flex items-center justify-center gap-2 rounded-[10px] border border-transparent bg-surface-2 px-4 py-2.5 font-semibold text-ink transition hover:brightness-95 disabled:opacity-60; }
+  .btn.primary { @apply bg-brand text-brand-ink; }
+  .btn.ghost { @apply bg-transparent border-line; }
+  .btn.danger { @apply text-bad; }
+  .btn.small { @apply px-2.5 py-1.5 text-sm; }
+  .btn.block { @apply w-full; }
+  .icon-btn { @apply inline-grid place-items-center text-muted text-xl leading-none px-1 hover:text-ink; }
+  .icon-btn.ayuda { @apply size-9 rounded-full border border-line text-base hover:text-brand hover:border-brand; }
+  .link-btn { @apply text-sm text-muted underline p-1; }
+
+  label.check { @apply flex items-center gap-2.5 text-ink text-[.95rem]; }
+  label.check input { @apply size-[22px] min-h-0 m-0 accent-brand; }
+
+  /* Login */
+  .login-card { @apply grid w-full max-w-sm gap-3 rounded-[20px] border border-line bg-surface px-6 py-7 text-center shadow-suave; }
+  .login-card label { @apply text-left; }
+
+  /* Encabezado */
+  #topbar {
+    @apply sticky top-0 z-40 flex items-center justify-between gap-2 border-b border-line px-4 py-2.5 backdrop-blur-md;
+    background: color-mix(in srgb, var(--bg) 88%, transparent);
+    padding-top: max(.625rem, env(safe-area-inset-top));
+  }
+  .brand { @apply flex items-center gap-2 font-bold; }
+  .badge { @apply inline-flex items-center gap-1 whitespace-nowrap rounded-full bg-surface-2 px-2 py-0.5 text-xs font-bold text-muted; }
+  .badge.warn { @apply text-warn; background: color-mix(in srgb, var(--warn) 18%, transparent); }
+  .badge.ok { @apply text-ok; background: color-mix(in srgb, var(--ok) 16%, transparent); }
+  .badge.bad { @apply text-bad; background: color-mix(in srgb, var(--bad) 16%, transparent); }
+  .badge.grupo { @apply ml-1 align-middle font-semibold text-info; background: color-mix(in srgb, var(--info) 15%, transparent); }
+
+  /* Menú: abajo en celular/tablet, lateral en escritorio */
+  #tabs { @apply fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-line bg-surface; padding-bottom: env(safe-area-inset-bottom); }
+  #tabs button { @apply flex h-[var(--nav-h)] flex-col items-center justify-center gap-1 px-0.5 text-[.66rem] font-semibold text-muted; }
+  #tabs button .bi { @apply text-xl; }
+  #tabs button.active { @apply text-brand; }
+  #tabs .l { @apply hidden; }
+
+  #fab {
+    @apply fixed right-4 z-30 grid size-14 place-items-center rounded-2xl bg-brand text-3xl text-brand-ink shadow-xl transition hover:brightness-110;
+    bottom: calc(var(--nav-h) + 1rem + env(safe-area-inset-bottom));
+  }
+
+  #view { @apply mx-auto w-full max-w-[1180px] px-4 pt-4; padding-bottom: calc(var(--nav-h) + 6rem); }
+  .banner {
+    @apply mx-4 mt-3 flex flex-wrap items-center gap-2 rounded-xl px-3.5 py-3 text-sm;
+    background: color-mix(in srgb, var(--warn) 12%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+  }
+
+  /* Tarjetas y secciones */
+  .card { @apply min-w-0 rounded-[14px] border border-line bg-surface p-4 shadow-suave; }
+  .section { @apply mt-6; }
+  .section-head { @apply mb-2.5 flex flex-wrap items-center justify-between gap-2.5; }
+  .periodo h3 { @apply mb-2.5 text-xs font-bold uppercase tracking-wider text-muted; }
+  .periodo .fila { @apply flex justify-between py-1 tabular-nums; }
+  .periodo .neto { @apply mt-1.5 border-t border-dashed border-line pt-2 text-lg font-bold; }
+  .kpi span { @apply block text-xs text-muted; }
+  .kpi b { @apply mt-0.5 block text-xl tabular-nums break-words; }
+  .kpi small { @apply text-xs text-muted; }
+  .clickable { @apply cursor-pointer; }
+  .clickable:hover, .item:hover { border-color: color-mix(in srgb, var(--brand) 40%, var(--line)); }
+  .chart-box { @apply relative h-60; }
+
+  .seg { @apply inline-flex max-w-full gap-0.5 overflow-x-auto rounded-[10px] bg-surface-2 p-[3px]; }
+  .seg button { @apply whitespace-nowrap rounded-lg px-3 py-1.5 text-sm font-semibold text-muted; }
+  .seg button.on { @apply bg-surface text-ink shadow-suave; }
+
+  /* Listas */
+  .list { @apply grid gap-2; }
+  .item { @apply flex w-full items-center gap-3 rounded-xl border border-line bg-surface px-3.5 py-3 text-left text-inherit cursor-pointer; }
+  .item .main { @apply min-w-0 flex-1; }
+  .item .main b { @apply block truncate; }
+  .item .main small { @apply text-muted; }
+  .amt { @apply whitespace-nowrap font-bold tabular-nums; }
+  .amt.small { @apply text-[.82rem]; }
+  .dot { @apply size-2.5 flex-none rounded-full bg-muted; }
+  .empty { @apply rounded-xl border border-dashed border-line px-3 py-7 text-center text-muted; }
+  .actions { @apply flex flex-wrap gap-2; }
+
+  /* Fugas */
+  .fuga { @apply flex gap-3 rounded-xl border border-line border-l-4 border-l-info bg-surface px-3.5 py-3; }
+  .fuga.alta { @apply border-l-bad; }
+  .fuga.media { @apply border-l-warn; }
+  .fuga b { @apply block; }
+  .fuga p { @apply mt-0.5 text-sm text-muted; }
+  .fuga .ahorro { @apply ml-auto whitespace-nowrap text-right text-xs text-muted; }
+  .fuga .ahorro strong { @apply block text-[.95rem] text-ok; }
+
+  /* Deudas y metas */
+  .dcard { @apply grid gap-2.5; }
+  .dcard .top { @apply flex items-start justify-between gap-2.5; }
+  .dcard .saldo { @apply text-2xl font-extrabold tabular-nums; }
+  .meta-row { @apply grid grid-cols-2 gap-x-3.5 gap-y-2 text-sm; }
+  .meta-row span { @apply block text-xs text-muted; }
+  .bar { @apply h-2 overflow-hidden rounded-full bg-surface-2; }
+  .bar i { @apply block h-full rounded-full bg-brand; }
+  .bar.over i { @apply bg-bad; }
+
+  /* Calendario */
+  .cal-head { @apply mb-2.5 flex items-center justify-between gap-2; }
+  .cal-head h2 { @apply capitalize; }
+  .cal { @apply grid grid-cols-7 gap-1; }
+  .cal .dow { @apply py-1 text-center text-xs font-bold text-muted; }
+  .cal .day { @apply flex aspect-square min-h-11 flex-col items-start gap-0.5 rounded-[10px] border border-line bg-surface p-1 text-[.82rem]; }
+  .cal .day.hoy { @apply border-brand font-extrabold; }
+  .cal .day.sel { @apply border-brand bg-brand-soft; }
+  .cal .dots { @apply mt-auto flex flex-wrap gap-[3px]; }
+  .cal .dots i { @apply size-[7px] rounded-full; }
+  .leyenda { @apply mt-2.5 flex flex-wrap gap-3.5 text-xs text-muted; }
+  .leyenda i { @apply mr-1.5 inline-block size-2 rounded-full; }
+  .t-deuda { background: var(--bad) !important; }
+  .t-fijo { background: var(--info) !important; }
+  .t-meta, .t-ingreso { background: var(--ok) !important; }
+  .t-gasto { background: var(--warn) !important; }
+  .t-evento { background: var(--c-evento) !important; }
+  .gcal { @apply inline-flex flex-none items-center gap-1 whitespace-nowrap rounded-lg border border-line px-2 py-1 text-xs font-bold text-muted no-underline hover:border-brand hover:text-brand; }
+
+  /* Formularios */
+  #modal-form { @apply flex flex-col max-h-[calc(100dvh-24px)]; }
+  #modal-form header, #modal-form footer { @apply flex items-center gap-2 px-[18px] py-3.5; }
+  #modal-form header { @apply justify-between border-b border-line; }
+  #modal-form footer { @apply border-t border-line; }
+  .spacer { @apply flex-1; }
+  .form-grid { @apply grid gap-3 overflow-auto px-[18px] py-4; }
+  .chips { @apply my-1 flex flex-wrap gap-2; }
+  .chip { @apply inline-flex items-center gap-1.5 rounded-full border border-line px-3 py-1.5 text-sm text-ink cursor-pointer has-[input:checked]:border-brand has-[input:checked]:bg-brand-soft; }
+  .chip input { @apply m-0 size-4 min-h-0 accent-brand; }
+  .adj-field { @apply grid gap-2; }
+  .adj-field .lbl { @apply text-sm font-medium text-muted; }
+  .file-btn { @apply justify-self-start text-ink; }
+  .thumbs { @apply flex flex-wrap gap-2 empty:hidden; }
+  .thumb { @apply relative size-[72px] overflow-hidden rounded-[10px] border border-line bg-surface-2; }
+  .thumb > button:first-child { @apply block size-full; }
+  .thumb img { @apply size-full object-cover; }
+  .thumb .pdf { @apply grid size-full place-items-center text-2xl text-bad; }
+  .thumb .x { @apply absolute right-1 top-1 grid size-[22px] place-items-center rounded-full bg-black/65 text-xs text-white; }
+  .thumb.nuevo { @apply outline-2 -outline-offset-2 outline-dashed outline-brand; }
+  .nota-grupo { @apply m-0 rounded-[10px] bg-surface-2 px-3 py-2.5; }
+
+  /* Menú rápido */
+  .quick-grid { @apply mb-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-3; }
+  .q { @apply flex flex-col items-center gap-1.5 rounded-xl border border-line bg-surface-2 px-2.5 py-4 font-bold text-ink; }
+  .q .bi { @apply text-2xl; }
+  .q.pos { @apply text-ok; }
+  .q.neg { @apply text-bad; }
+
+  /* Grupo */
+  .codigo { @apply mb-3 flex flex-wrap items-center gap-2.5 rounded-xl bg-surface-2 p-3; }
+  .codigo b { @apply font-mono text-xl tracking-[.18em]; }
+  .codigo .btn { @apply ml-auto; }
+  .members { @apply mb-3 grid gap-1.5; }
+  .member { @apply flex items-center gap-2.5 py-1.5; }
+  .member .main { @apply min-w-0 flex-1; }
+  .avatar { @apply grid size-[34px] flex-none place-items-center rounded-full bg-brand-soft font-extrabold text-brand; }
+  .pago-sug { @apply flex flex-wrap items-center gap-2.5 rounded-xl border border-line p-3; }
+  .pago-sug > div { @apply min-w-36 flex-1; }
+  .intro { @apply grid max-w-2xl gap-3; }
+
+  /* Visor de evidencias */
+  #visor { @apply w-[min(900px,calc(100vw-16px))]; }
+  #visor img { @apply mx-auto block max-h-[75dvh] max-w-full bg-black object-contain; }
+  .visor-head, .visor-foot { @apply flex items-center justify-between gap-2.5 px-3.5 py-2.5; }
+
+  #toast {
+    @apply pointer-events-none fixed left-1/2 z-[100] max-w-[90vw] -translate-x-1/2 translate-y-5 rounded-[10px] bg-ink px-4 py-2.5 text-sm font-semibold text-bg opacity-0 transition duration-300;
+    bottom: calc(var(--nav-h) + 5.5rem);
+  }
+  #toast.show { @apply translate-y-0 opacity-100; }
+  #user-chip { @apply hidden max-w-[40vw] truncate sm:inline-flex; }
+}
+
+/* ---------- Celular: los formularios salen desde abajo ---------- */
+@media (width < 40rem) {
+  dialog#modal, dialog#quick { @apply mx-0 mb-0 mt-auto w-screen max-w-none rounded-b-none; }
+}
+
+/* ---------- Escritorio (≥1024px): header arriba, menú lateral, contenido; nada se encima ---------- */
+@media (width >= 64rem) {
+  #app {
+    display: grid; min-height: 100dvh;
+    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas: "top top" "nav banner" "nav view";
+  }
+  #topbar { grid-area: top; height: var(--top-h); padding-top: 0; padding-bottom: 0; }
+  #tabs {
+    grid-area: nav; position: sticky; top: var(--top-h); align-self: start;
+    height: calc(100dvh - var(--top-h)); overflow-y: auto;
+    display: flex; flex-direction: column; gap: .25rem;
+    padding: 1rem .75rem; border-top: 0; border-right: 1px solid var(--line);
+  }
+  #tabs button { @apply h-auto flex-row justify-start gap-3 rounded-[10px] px-3 py-2.5 text-[.95rem]; }
+  #tabs button .bi { @apply text-lg; }
+  #tabs button.active { @apply bg-brand-soft; }
+  #tabs .l { display: inline; }
+  #tabs .s { display: none; }
+  .banner { grid-area: banner; margin: 1rem 1.5rem 0; }
+  #view { grid-area: view; padding: 1.25rem 1.5rem 7rem; }
+  #fab { bottom: 1.75rem; right: 1.75rem; }
+  #toast { bottom: 2rem; }
+}
+
+/* ---------- Tours (Driver.js) con los colores de la app ---------- */
+.driver-popover.tour { background: var(--surface); color: var(--text); border-radius: 14px; padding: 18px; max-width: 330px;
+  font-family: var(--font-sans); box-shadow: 0 10px 40px rgb(0 0 0 / .3); }
+.driver-popover.tour .driver-popover-title { font-size: 1.05rem; font-weight: 800; line-height: 1.3; }
+.driver-popover.tour .driver-popover-description { color: var(--muted); font-size: .92rem; line-height: 1.5; margin-top: 6px; }
+.driver-popover.tour .driver-popover-progress-text { color: var(--muted); font-size: .8rem; }
+.driver-popover.tour .driver-popover-footer button { all: unset; cursor: pointer; font-size: .85rem; font-weight: 700; padding: 7px 12px;
+  border-radius: 9px; border: 1px solid var(--line); color: var(--text); background: var(--surface-2); }
+.driver-popover.tour .driver-popover-footer .driver-popover-next-btn { background: var(--brand); color: var(--brand-ink); border-color: var(--brand); }
+.driver-popover.tour .driver-popover-footer button:focus-visible { outline: 2px solid var(--brand); outline-offset: 2px; }
+.driver-popover.tour .driver-popover-navigation-btns { gap: 6px; }
+.driver-popover.tour .driver-popover-close-btn { color: var(--muted); }
+.driver-popover.tour .driver-popover-arrow-side-left { border-left-color: var(--surface); }
+.driver-popover.tour .driver-popover-arrow-side-right { border-right-color: var(--surface); }
+.driver-popover.tour .driver-popover-arrow-side-top { border-top-color: var(--surface); }
+.driver-popover.tour .driver-popover-arrow-side-bottom { border-bottom-color: var(--surface); }

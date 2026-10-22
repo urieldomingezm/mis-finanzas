@@ -161,7 +161,7 @@ function derivar() {
 }
 const rawRow = (t, id) => R[t].find(r => String(r.id) === String(id));
 const adjuntosDe = (t, id) => R.adjuntos.filter(a => a.tabla === t && a.registro_id === id);
-const clip = (t, id) => { const n = adjuntosDe(t, id).length; return n ? ` · 📎${n}` : ''; };
+const clip = (t, id) => { const n = adjuntosDe(t, id).length; return n ? ` · <i class="bi bi-paperclip" aria-hidden="true"></i>${n}` : ''; };
 const puedeEditar = (t, row) => !row || esMio(row);   // en metas compartidas los demás solo pueden "Aportar"
 
 /* ---------- Definición de formularios ---------- */
@@ -261,7 +261,7 @@ function campo(f, v) {
     case 'participantes': return `<fieldset data-solo-grupo class="chips-field" data-v="${esc(JSON.stringify(v || []))}"><legend>${f.l}</legend><div class="chips"></div><small class="muted" data-parte></small></fieldset>`;
     case 'miembro': return `<label>${f.l}<select name="${f.k}" data-miembro data-v="${esc(v || '')}" required></select></label>`;
     case 'files': return `<div class="adj-field"><span class="lbl">${f.l}</span><div class="thumbs" id="adj-exist"></div><div class="thumbs" id="adj-nuevos"></div>
-      <label class="btn ghost small file-btn">📷 Tomar foto o elegir archivo<input type="file" name="_adjuntos" multiple accept="image/*,application/pdf" hidden></label></div>`;
+      <label class="btn ghost small file-btn"><i class="bi bi-camera" aria-hidden="true"></i>Tomar foto o elegir archivo<input type="file" name="_adjuntos" multiple accept="image/*,application/pdf" hidden></label></div>`;
     default: {
       const extra = f.t === 'number' ? `step="${f.step || '0.01'}" min="0" ${f.max ? `max="${f.max}"` : ''} inputmode="decimal"` : '';
       const val = f.t === 'time' && v ? String(v).slice(0, 5) : v;
@@ -295,8 +295,8 @@ function actualizarParte() {
 }
 function pintarAdjuntos(cont, lista, borrable) {
   cont.innerHTML = lista.map(a => `<div class="thumb">
-    <button type="button" data-act="ver-adj" data-id="${a.id}" title="${esc(a.nombre || 'Evidencia')}">${a.tipo_mime === 'application/pdf' ? '<span class="pdf">PDF</span>' : `<img data-adj="${a.id}" alt="${esc(a.nombre || 'evidencia')}">`}</button>
-    ${borrable && esMio(a) ? `<button type="button" class="x" data-act="borrar-adj" data-id="${a.id}" aria-label="Quitar evidencia">×</button>` : ''}</div>`).join('');
+    <button type="button" data-act="ver-adj" data-id="${a.id}" title="${esc(a.nombre || 'Evidencia')}">${a.tipo_mime === 'application/pdf' ? '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>' : `<img data-adj="${a.id}" alt="${esc(a.nombre || 'evidencia')}">`}</button>
+    ${borrable && esMio(a) ? `<button type="button" class="x" data-act="borrar-adj" data-id="${a.id}" aria-label="Quitar evidencia"><i class="bi bi-x-lg" aria-hidden="true"></i></button>` : ''}</div>`).join('');
   hidratar(cont);
 }
 function hidratar(root) {
@@ -326,7 +326,7 @@ form.addEventListener('change', e => {
   if (e.target.name === 'grupo_id') actualizarGrupoCampos(true);
   if (e.target.closest('.chips-field')) actualizarParte();
   if (e.target.name === '_adjuntos') {
-    $('#adj-nuevos').innerHTML = [...e.target.files].map(f => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf">PDF</span>'}</div>`).join('');
+    $('#adj-nuevos').innerHTML = [...e.target.files].map(f => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>'}</div>`).join('');
   }
 });
 form.addEventListener('input', e => { if (e.target.name === 'monto') actualizarParte(); });
@@ -641,8 +641,8 @@ function serie(tipo) {
 let tab = 'resumen', vistaSerie = 'semanas', movTipo = 'gastos', movMes = today().slice(0, 7), grupoSel = null;
 let agY = new Date().getFullYear(), agM = new Date().getMonth(), agSel = null;
 
-const vacio = (txt, tipo, pre) => `<div class="empty">${txt}${tipo ? `<br><br><button class="btn primary small" data-act="nuevo" data-t="${tipo}"${pre ? ` data-g="${pre}"` : ''}>Agregar</button>` : ''}</div>`;
-const etiquetaGrupo = gid => gid ? ` <span class="badge grupo">👥 ${esc(nombreGrupo(gid))}</span>` : '';
+const vacio = (txt, tipo, pre) => `<div class="empty">${txt}${tipo ? `<br><br><button class="btn primary small" data-act="nuevo" data-t="${tipo}"${pre ? ` data-g="${pre}"` : ''}><i class="bi bi-plus-lg" aria-hidden="true"></i>Agregar</button>` : ''}</div>`;
+const etiquetaGrupo = gid => gid ? ` <span class="badge grupo"><i class="bi bi-people-fill" aria-hidden="true"></i>${esc(nombreGrupo(gid))}</span>` : '';
 
 function vResumen() {
   const hoy = new Date(), sw = startOfWeek(hoy), ew = addDays(sw, 7), sm = mesIni(), em = mesIni(hoy, 1);
@@ -663,11 +663,11 @@ function vResumen() {
     </div>`;
 
   return `
-  <div class="grid cols-2" id="t-periodos">
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2" id="t-periodos">
     ${periodo(`Esta semana · ${fCorta(sw)} – ${fCorta(addDays(sw, 6))}`, iw, gw)}
     ${periodo(`Este mes · ${MESES[hoy.getMonth()]}`, im, gm)}
   </div>
-  <div class="grid cols-4 section" id="t-kpis">
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 section" id="t-kpis">
     <div class="card kpi"><span>Deuda total</span><b class="${deuda > 0 ? 'neg' : ''}">${money(deuda)}</b><small>${S.deudas.filter(d => d.saldo > 0).length} activas</small></div>
     <div class="card kpi"><span>Gastos fijos / mes</span><b>${money(fijos)}</b><small>${money(fijos * 12)} al año</small></div>
     ${gs.length ? `<div class="card kpi clickable" data-act="tab" data-v="grupo"><span>Con tus roomies</span><b class="${saldoGrupos >= 0 ? 'pos' : 'neg'}">${saldoGrupos >= 0 ? 'Te deben ' : 'Debes '}${money(Math.abs(saldoGrupos))}</b><small>${gs.length} grupo${gs.length > 1 ? 's' : ''}</small></div>`
@@ -675,7 +675,7 @@ function vResumen() {
     <div class="card kpi"><span>Tasa de ahorro del mes</span><b>${im > 0 ? pct(im - gm, im) : 0}%</b><small>Ideal: 10–20% o más</small></div>
   </div>
 
-  <div class="grid cols-2 section">
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">
     <div class="card" id="t-grafica">
       <div class="section-head"><h2>Ingresos vs gastos</h2>
         <div class="seg"><button data-act="serie" data-v="semanas" class="${vistaSerie === 'semanas' ? 'on' : ''}">Semanas</button><button data-act="serie" data-v="meses" class="${vistaSerie === 'meses' ? 'on' : ''}">Meses</button></div>
@@ -728,7 +728,7 @@ function vMovimientos() {
   const grupos = {};
   rows.forEach(r => { const k = iso(startOfWeek(parse(r.fecha))); (grupos[k] ||= []).push(r); });
   const det = r => movTipo === 'gastos'
-    ? `${esc(r.categoria || 'Sin categoría')}${r.grupo_id ? ` · 👥 tu parte de ${money(r.total)} · pagó ${esc(aliasDe(r.pagado_por || r.user_id, r.grupo_id))}` : ''}`
+    ? `${esc(r.categoria || 'Sin categoría')}${r.grupo_id ? ` · <i class="bi bi-people-fill" aria-hidden="true"></i> tu parte de ${money(r.total)} · pagó ${esc(aliasDe(r.pagado_por || r.user_id, r.grupo_id))}` : ''}`
     : esc(r.fuente || '');
   return `
   <div class="section-head">
@@ -771,15 +771,15 @@ function vDeudas() {
     </div>`;
   };
   return `
-  <div class="grid cols-4" id="t-deudas-kpis">
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" id="t-deudas-kpis">
     <div class="card kpi"><span>Debes en total</span><b class="neg">${money(total)}</b></div>
     <div class="card kpi"><span>Pagos al mes</span><b>${money(pagoMes)}</b></div>
     <div class="card kpi"><span>Intereses al mes ≈</span><b class="neg">${money(intMes)}</b><small>dinero que se va sin bajar la deuda</small></div>
     <div class="card kpi"><span>Deudas activas</span><b>${act.length}</b></div>
   </div>
   ${act.length > 1 ? `<p class="muted small section">Estrategia <b>avalancha</b>: paga el mínimo en todas y todo lo extra a la de tasa más alta (están ordenadas así). Es la forma de pagar menos intereses.</p>` : ''}
-  <div class="grid cols-2 section">${act.map(card).join('') || vacio('Sin deudas registradas. Agrega las de apps, tarjetas o tiendas. Tus deudas siempre son privadas.', 'deudas')}</div>
-  ${pagadas.length ? `<div class="section"><h2 class="section-head">Liquidadas 🎉</h2><div class="grid cols-2">${pagadas.map(card).join('')}</div></div>` : ''}`;
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">${act.map(card).join('') || vacio('Sin deudas registradas. Agrega las de apps, tarjetas o tiendas. Tus deudas siempre son privadas.', 'deudas')}</div>
+  ${pagadas.length ? `<div class="section"><h2 class="section-head"><i class="bi bi-trophy text-ok" aria-hidden="true"></i> Liquidadas</h2><div class="grid grid-cols-1 gap-3 md:grid-cols-2">${pagadas.map(card).join('')}</div></div>` : ''}`;
 }
 
 function vFijos() {
@@ -787,7 +787,7 @@ function vFijos() {
   const total = rows.reduce((s, r) => s + mensualEq(r.monto, r.frecuencia), 0);
   const sinUso = rows.filter(r => r.en_uso === false).reduce((s, r) => s + mensualEq(r.monto, r.frecuencia), 0);
   return `
-  <div class="grid cols-4" id="t-fijos-kpis">
+  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" id="t-fijos-kpis">
     <div class="card kpi"><span>Fijos al mes (tu parte)</span><b>${money(total)}</b></div>
     <div class="card kpi"><span>Al año</span><b>${money(total * 12)}</b></div>
     <div class="card kpi"><span>Pagas sin usar</span><b class="${sinUso ? 'neg' : ''}">${money(sinUso)}</b><small>al mes</small></div>
@@ -833,20 +833,21 @@ function vMetas() {
   });
   return `
   <div class="card kpi" id="t-sobrante"><span>Tu sobrante promedio al mes (ingresos − gastos)</span><b class="${neto >= 0 ? 'pos' : 'neg'}">${money(neto)}</b><small>Con esto se calcula cuándo llegas a cada meta.</small></div>
-  <div class="section" id="t-metas"><div class="section-head"><h2>Metas a largo plazo</h2><button class="btn ghost small" data-act="nuevo" data-t="metas">+ Meta</button></div>
-    <div class="grid cols-2">${metas.join('') || vacio('Crea tu primera meta: fondo de emergencia (3 meses de gastos), algo que quieras comprar, un viaje…', 'metas')}</div></div>
-  <div class="section" id="t-presupuestos"><div class="section-head"><h2>Presupuestos de ${MESES[new Date().getMonth()]}</h2><button class="btn ghost small" data-act="nuevo" data-t="presupuestos">+ Presupuesto</button></div>
+  <div class="section" id="t-metas"><div class="section-head"><h2>Metas a largo plazo</h2><button class="btn ghost small" data-act="nuevo" data-t="metas"><i class="bi bi-plus-lg" aria-hidden="true"></i>Meta</button></div>
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">${metas.join('') || vacio('Crea tu primera meta: fondo de emergencia (3 meses de gastos), algo que quieras comprar, un viaje…', 'metas')}</div></div>
+  <div class="section" id="t-presupuestos"><div class="section-head"><h2>Presupuestos de ${MESES[new Date().getMonth()]}</h2><button class="btn ghost small" data-act="nuevo" data-t="presupuestos"><i class="bi bi-plus-lg" aria-hidden="true"></i>Presupuesto</button></div>
     <div class="list">${pres.join('') || vacio('Ponle un tope mensual a comida, salidas, ropa… y te aviso cuando te pases.')}</div></div>`;
 }
 
 function itemEvento(e, fecha) {
-  const sub = [fLarga(fecha), e.hora ? String(e.hora).slice(0, 5) : '', e.etiqueta && e.etiqueta !== 'Recordatorio' ? e.etiqueta : '',
-    e.grupo ? '👥 ' + nombreGrupo(e.grupo) : '', e.de ? 'de ' + e.de : '', e.sinUso ? 'no lo usas' : '', e.repetir && e.repetir !== 'no se repite' ? '↻ ' + e.repetir : '']
-    .filter(Boolean).map(esc).join(' · ');
+  const ic = (n, t) => `<span class="inline-flex items-center gap-1"><i class="bi bi-${n}" aria-hidden="true"></i>${esc(t)}</span>`;
+  const sub = [esc(fLarga(fecha)), e.hora ? ic('clock', String(e.hora).slice(0, 5)) : '', e.etiqueta && e.etiqueta !== 'Recordatorio' ? esc(e.etiqueta) : '',
+    e.grupo ? ic('people-fill', nombreGrupo(e.grupo)) : '', e.de ? esc('de ' + e.de) : '', e.sinUso ? '<span class="text-bad">no lo usas</span>' : '',
+    e.repetir && e.repetir !== 'no se repite' ? ic('arrow-repeat', e.repetir) : ''].filter(Boolean).join(' · ');
   return `<div class="item" ${e.ref ? `data-act="edit" data-t="${e.ref.t}" data-id="${e.ref.id}"` : ''}><i class="dot t-${e.tipo}"></i>
-    <div class="main"><b>${esc(e.txt)}</b><small>${sub}${e.ref ? clip(e.ref.t, e.ref.id) : ''}</small></div>
+    <div class="main"><b>${esc(e.txt)}</b><small class="flex flex-wrap items-center gap-x-1">${sub}${e.ref ? clip(e.ref.t, e.ref.id) : ''}</small></div>
     ${e.monto ? `<span class="amt">${money(e.monto)}</span>` : ''}
-    <a class="gcal" data-act="link" href="${gcalUrl(e, fecha)}" target="_blank" rel="noopener" title="Agregar a Google Calendar" aria-label="Agregar a Google Calendar">+📅</a></div>`;
+    <a class="gcal" data-act="link" href="${gcalUrl(e, fecha)}" target="_blank" rel="noopener" title="Agregar a Google Calendar" aria-label="Agregar a Google Calendar"><i class="bi bi-calendar-plus" aria-hidden="true"></i><span class="hidden sm:inline">Google</span></a></div>`;
 }
 
 function vAgenda() {
@@ -864,21 +865,21 @@ function vAgenda() {
   const reales = fSel ? movs(fSel) : [];
   const porPagar = sum(ev.filter(e => !e.info));
   return `
-  <div class="grid cols-2">
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
     <div class="card">
-      <div class="cal-head"><button class="btn ghost small" data-act="mes" data-v="-1" aria-label="Mes anterior">‹</button>
+      <div class="cal-head"><button class="btn ghost small" data-act="mes" data-v="-1" aria-label="Mes anterior"><i class="bi bi-chevron-left" aria-hidden="true"></i></button>
         <h2>${MESES[agM]} ${agY}</h2>
-        <div class="actions"><button class="btn ghost small" data-act="mes" data-v="0">Hoy</button><button class="btn ghost small" data-act="mes" data-v="1" aria-label="Mes siguiente">›</button></div></div>
+        <div class="actions"><button class="btn ghost small" data-act="mes" data-v="0">Hoy</button><button class="btn ghost small" data-act="mes" data-v="1" aria-label="Mes siguiente"><i class="bi bi-chevron-right" aria-hidden="true"></i></button></div></div>
       <div class="cal" id="t-cal">${celdas}</div>
       <div class="leyenda"><span><i class="t-deuda"></i>Deuda</span><span><i class="t-fijo"></i>Fijo</span><span><i class="t-evento"></i>Evento</span><span><i class="t-meta"></i>Meta</span><span><i class="t-gasto"></i>Gasto</span><span><i class="t-ingreso"></i>Ingreso</span></div>
     </div>
     <div>
       <div class="card kpi"><span>Programado por pagar en ${MESES[agM]} (tu parte)</span><b>${money(porPagar)}</b><small>deudas + fijos + eventos tipo pago</small></div>
       <div class="section"><div class="section-head"><h2>${agSel ? `${fLarga(fSel)}` : 'Todo el mes'}</h2>
-        <div class="actions">${agSel ? '<button class="btn ghost small" data-act="dia" data-v="0">Ver mes</button>' : ''}<button class="btn primary small" data-act="nuevo-evento" data-v="${fSel || ''}">+ Evento</button></div></div>
+        <div class="actions">${agSel ? '<button class="btn ghost small" data-act="dia" data-v="0">Ver mes</button>' : ''}<button class="btn primary small" data-act="nuevo-evento" data-v="${fSel || ''}"><i class="bi bi-calendar-plus" aria-hidden="true"></i>Evento</button></div></div>
       <div class="list">
         ${lista.map(e => itemEvento(e, new Date(agY, agM, e.day))).join('')}
-        ${reales.map(m => `<button class="item" data-act="edit" data-t="${m.tipo === 'ingreso' ? 'ingresos' : 'gastos'}" data-id="${m.id}"><i class="dot t-${m.tipo}"></i><div class="main"><b>${esc(m.concepto)}</b><small>${m.tipo} registrado${m.grupo_id ? ' · 👥 ' + esc(nombreGrupo(m.grupo_id)) : ''}${clip(m.tipo === 'ingreso' ? 'ingresos' : 'gastos', m.id)}</small></div><span class="amt ${m.tipo === 'ingreso' ? 'pos' : 'neg'}">${money(m.monto)}</span></button>`).join('')}
+        ${reales.map(m => `<button class="item" data-act="edit" data-t="${m.tipo === 'ingreso' ? 'ingresos' : 'gastos'}" data-id="${m.id}"><i class="dot t-${m.tipo}"></i><div class="main"><b>${esc(m.concepto)}</b><small>${m.tipo} registrado${m.grupo_id ? ' · <i class="bi bi-people-fill" aria-hidden="true"></i> ' + esc(nombreGrupo(m.grupo_id)) : ''}${clip(m.tipo === 'ingreso' ? 'ingresos' : 'gastos', m.id)}</small></div><span class="amt ${m.tipo === 'ingreso' ? 'pos' : 'neg'}">${money(m.monto)}</span></button>`).join('')}
         ${!lista.length && !reales.length ? vacio(agSel ? 'Nada en este día.' : 'Nada programado este mes.') : ''}
       </div></div>
     </div>
@@ -907,23 +908,23 @@ function vGrupo() {
 
   return `
   ${gs.length > 1 ? `<div class="seg scroll section-head">${gs.map(x => `<button data-act="grupo-sel" data-v="${x.id}" class="${x.id === g.id ? 'on' : ''}">${esc(x.nombre)}</button>`).join('')}</div>` : ''}
-  <div class="grid cols-2">
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
     <div class="card">
-      <div class="section-head"><h2>👥 ${esc(g.nombre)}</h2><span class="badge">${ms.length} miembro${ms.length > 1 ? 's' : ''}</span></div>
-      <div class="codigo"><span class="muted small">Código de invitación</span><b>${esc(g.codigo)}</b><button class="btn primary small" data-act="invitar">Invitar</button></div>
+      <div class="section-head"><h2><i class="bi bi-people-fill text-brand" aria-hidden="true"></i> ${esc(g.nombre)}</h2><span class="badge">${ms.length} miembro${ms.length > 1 ? 's' : ''}</span></div>
+      <div class="codigo"><span class="muted small">Código de invitación</span><b>${esc(g.codigo)}</b><button class="btn primary small" data-act="invitar"><i class="bi bi-share" aria-hidden="true"></i>Invitar</button></div>
       <div class="members">${ms.map(m => { const v = Math.round((bal[m.user_id] || 0) * 100) / 100; return `
         <div class="member"><span class="avatar">${ini(m.alias)}</span><div class="main"><b>${esc(aliasDe(m.user_id, g.id))}</b>${m.rol === 'admin' ? ' <small class="muted">· creó el grupo</small>' : ''}</div>
         <span class="amt small ${v > 0 ? 'pos' : v < 0 ? 'neg' : 'muted'}">${v > 0 ? 'le deben ' + money(v) : v < 0 ? 'debe ' + money(-v) : 'a mano'}</span></div>`; }).join('')}</div>
-      <div class="actions"><button class="btn ghost small" data-act="mi-alias" data-id="${yo?.id || ''}">Cambiar mi nombre</button><button class="btn ghost small danger" data-act="salir-grupo">Salir del grupo</button>${DEMO ? '' : '<button class="btn ghost small" data-act="actualizar">↻ Actualizar</button>'}</div>
+      <div class="actions"><button class="btn ghost small" data-act="mi-alias" data-id="${yo?.id || ''}"><i class="bi bi-pencil-square" aria-hidden="true"></i>Cambiar mi nombre</button><button class="btn ghost small danger" data-act="salir-grupo"><i class="bi bi-box-arrow-right" aria-hidden="true"></i>Salir del grupo</button>${DEMO ? '' : '<button class="btn ghost small" data-act="actualizar"><i class="bi bi-arrow-clockwise" aria-hidden="true"></i>Actualizar</button>'}</div>
     </div>
     <div class="card" id="t-amano">
       <h2>Para quedar a mano</h2>
       <div class="list" style="margin-top:12px">${pagos.length ? pagos.map(p => `
-        <div class="pago-sug"><div><b>${esc(aliasDe(p.de, g.id))}</b> → <b>${esc(aliasDe(p.para, g.id))}</b></div><b class="amt">${money(p.monto)}</b>
+        <div class="pago-sug"><div><b>${esc(aliasDe(p.de, g.id))}</b> <i class="bi bi-arrow-right text-muted" aria-hidden="true"></i> <b>${esc(aliasDe(p.para, g.id))}</b></div><b class="amt">${money(p.monto)}</b>
         ${DEMO || p.de === ME || p.para === ME ? `<button class="btn primary small" data-act="liquidar" data-de="${p.de}" data-para="${p.para}" data-monto="${p.monto}">Registrar pago</button>` : ''}</div>`).join('')
-        : '<div class="empty">Están a mano 🙌</div>'}</div>
+        : '<div class="empty"><i class="bi bi-check2-circle text-ok text-2xl block mb-1" aria-hidden="true"></i>Están a mano</div>'}</div>
       <p class="small muted" style="margin-top:10px">Se calcula con los gastos compartidos y los pagos entre ustedes. Adjunta el comprobante de la transferencia como evidencia.</p>
-      <button class="btn ghost small" data-act="liquidar">+ Otro pago entre compañeros</button>
+      <button class="btn ghost small" data-act="liquidar"><i class="bi bi-plus-lg" aria-hidden="true"></i>Otro pago entre compañeros</button>
     </div>
   </div>
 
@@ -932,15 +933,15 @@ function vGrupo() {
       <button class="item" data-act="edit" data-t="gastos" data-id="${x.id}"><div class="main"><b>${esc(x.concepto)}</b>
         <small>${fLarga(x.fecha)} · pagó ${esc(aliasDe(x.pagado_por || x.user_id, g.id))} · entre ${participantesDe(x).length} · tu parte ${money(miParte(x))}${clip('gastos', x.id)}</small></div>
         <span class="amt">${money(x.monto)}</span></button>`).join('') || vacio('Aún no hay gastos compartidos. Súper, luz, gas, garrafones…', 'gastos', g.id)}
-    ${gastosG.length ? `<button class="btn ghost small" data-act="nuevo" data-t="gastos" data-g="${g.id}">+ Gasto compartido</button>` : ''}</div></div>
+    ${gastosG.length ? `<button class="btn ghost small" data-act="nuevo" data-t="gastos" data-g="${g.id}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Gasto compartido</button>` : ''}</div></div>
 
-  <div class="grid cols-2 section">
-    <div id="t-fijos-grupo"><div class="section-head"><h2>Fijos del grupo</h2><button class="btn ghost small" data-act="nuevo" data-t="recurrentes" data-g="${g.id}">+ Fijo</button></div>
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">
+    <div id="t-fijos-grupo"><div class="section-head"><h2>Fijos del grupo</h2><button class="btn ghost small" data-act="nuevo" data-t="recurrentes" data-g="${g.id}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Fijo</button></div>
       <div class="list">${fijosG.map(r => { const prox = proximaFecha(r.proximo_cobro, r.frecuencia); return `
         <div class="item" data-act="edit" data-t="recurrentes" data-id="${r.id}"><div class="main"><b>${esc(r.nombre)}</b>
           <small>${money(r.monto)} ${esc(r.frecuencia)} · ${money(parteFijo(r))} c/u · próximo ${prox ? fCorta(prox) : '—'}</small></div>
           <button class="btn primary small" data-act="pagar-fijo" data-id="${r.id}">Ya se pagó</button></div>`; }).join('') || '<div class="empty">Renta, internet, luz… se dividen entre todos.</div>'}</div></div>
-    <div><div class="section-head"><h2>Próximos 30 días</h2><button class="btn ghost small" data-act="nuevo" data-t="eventos" data-g="${g.id}">+ Evento</button></div>
+    <div><div class="section-head"><h2>Próximos 30 días</h2><button class="btn ghost small" data-act="nuevo" data-t="eventos" data-g="${g.id}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Evento</button></div>
       <div class="list">${evs.map(e => itemEvento(e, e.fecha)).join('') || '<div class="empty">Sin eventos compartidos.</div>'}</div></div>
   </div>
 
@@ -953,7 +954,7 @@ function vGrupo() {
       <button class="item" data-act="edit" data-t="liquidaciones" data-id="${l.id}"><div class="main"><b>${esc(aliasDe(l.de, g.id))} le pagó a ${esc(aliasDe(l.para, g.id))}</b><small>${fLarga(l.fecha)}${l.notas ? ' · ' + esc(l.notas) : ''}${clip('liquidaciones', l.id)}</small></div>
       <span class="amt pos">${money(l.monto)}</span></button>`).join('') || '<div class="empty">Sin pagos registrados.</div>'}</div></div>
 
-  <div class="section actions"><button class="btn ghost small" data-act="crear-grupo">+ Crear otro grupo</button><button class="btn ghost small" data-act="unirse-grupo">Unirme a otro grupo</button></div>`;
+  <div class="section actions"><button class="btn ghost small" data-act="crear-grupo"><i class="bi bi-plus-lg" aria-hidden="true"></i>Crear otro grupo</button><button class="btn ghost small" data-act="unirse-grupo">Unirme a otro grupo</button></div>`;
 }
 
 const VISTAS = { resumen: vResumen, movimientos: vMovimientos, deudas: vDeudas, fijos: vFijos, metas: vMetas, agenda: vAgenda, grupo: vGrupo };
@@ -1126,7 +1127,7 @@ async function cargarEjemplo() {
 const P = (element, title, description, side) => ({ element, title, description, side });
 const TOURS = {
   bienvenida: [
-    P(null, '¡Bienvenido a Mis Finanzas! 👋', 'Te enseño en un minuto dónde está cada cosa. Puedes salir cuando quieras con la ✕ o la tecla Esc.'),
+    P(null, '¡Bienvenido a Mis Finanzas!', 'Te enseño en un minuto dónde está cada cosa. Puedes salir cuando quieras con la X o la tecla Esc.'),
     P('#tabs [data-tab="resumen"]', 'Inicio', 'Lo que ganas y gastas esta semana y este mes, las fugas de dinero que detecto y lo que viene por pagar.'),
     P('#tabs [data-tab="movimientos"]', 'Movimientos', 'Todos tus ingresos y gastos, mes por mes y agrupados por semana.'),
     P('#tabs [data-tab="deudas"]', 'Deudas', 'Apps de préstamo, tarjetas y tiendas: cuánto debes, cuánto pagas de intereses y cuál conviene liquidar primero. Siempre son privadas.'),
@@ -1142,12 +1143,12 @@ const TOURS = {
     P('#t-kpis', 'Indicadores clave', 'Deuda total, cuánto te cuestan los fijos y tu tasa de ahorro. La meta sana es ahorrar 10–20% de lo que ganas.'),
     P('#t-grafica', 'Tendencia', 'Compara ingresos contra gastos por semana o por mes.'),
     P('#t-fugas', 'Fugas detectadas', 'Aquí te aviso dónde se te escapa el dinero y cuánto podrías ahorrar cada mes.'),
-    P('#t-proximos', 'Próximos 14 días', 'Pagos y eventos que vienen. Con +📅 los pasas a tu Google Calendar.')
+    P('#t-proximos', 'Próximos 14 días', 'Pagos y eventos que vienen. Con el botón del calendario los pasas a tu Google Calendar.')
   ],
   movimientos: [
     P('#t-movtipo', 'Gastos o ingresos', 'Cambia entre lo que sale y lo que entra.'),
     P('#mov-mes', 'Mes', 'Elige qué mes quieres revisar.'),
-    P('#view .item', 'Cada registro', 'Tócalo para editarlo o ver su evidencia (📎). Si es compartido, verás quién pagó y tu parte.'),
+    P('#view .item', 'Cada registro', 'Tócalo para editarlo o ver su evidencia (el clip). Si es compartido, verás quién pagó y tu parte.'),
     P('#fab', 'Agregar', 'Registra un gasto o ingreso. Puedes tomar foto del ticket como evidencia.', 'left')
   ],
   deudas: [
