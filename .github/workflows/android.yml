@@ -41,6 +41,9 @@ jobs:
       - name: Instalar dependencias
         run: npm ci
 
+      - name: Versión
+        run: echo "APP_VERSION=$(node -p "require('./package.json').version.replace(/\\.\\d+$/, '')").${{ github.run_number }}" >> "$GITHUB_ENV"
+
       - name: Compilar la web y copiarla al proyecto Android
         run: npm run android:sync
 
@@ -73,8 +76,8 @@ jobs:
       - name: Publicar en Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: android-v1.0.${{ github.run_number }}
-          name: App Android 1.0.${{ github.run_number }}
+          tag_name: android-v${{ env.APP_VERSION }}
+          name: App Android ${{ env.APP_VERSION }}
           make_latest: true
           files: mis-finanzas.apk
           body: |

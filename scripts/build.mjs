@@ -2,7 +2,7 @@
 // La web de GitHub Pages se sirve tal cual desde la raíz del repo.
 import { cp, mkdir, rm, readFile, writeFile } from 'node:fs/promises';
 
-const ARCHIVOS = ['index.html', 'app.js', 'config.js', 'manifest.json', 'icon.svg', 'sw.js', 'css', 'vendor'];
+const ARCHIVOS = ['index.html', 'app.js', 'config.js', 'manifest.json', 'icon.svg', 'icon-192.png', 'icon-512.png', 'sw.js', 'css', 'vendor'];
 
 await rm('dist', { recursive: true, force: true });
 await mkdir('dist', { recursive: true });

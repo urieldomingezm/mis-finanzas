@@ -1,6 +1,6 @@
 {
   "name": "mis-finanzas",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "description": "Finanzas personales y gastos compartidos con roomies: web (GitHub Pages) y app Android (Capacitor), con Supabase",
   "type": "module",
@@ -21,6 +21,7 @@
     "@capacitor/app": "^8.0.0",
     "@capacitor/browser": "^8.0.5",
     "@capacitor/core": "^8.5.3",
+    "@capacitor/local-notifications": "^8.3.1",
     "@capacitor/share": "^8.0.0"
   },
   "devDependencies": {

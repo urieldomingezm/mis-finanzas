@@ -197,6 +197,9 @@ async function cargar() {
   const res = await Promise.all(TABLAS.map(t => db.list(t).catch(err => { console.warn(t, err); falta = true; return []; })));
   TABLAS.forEach((t, i) => { R[t] = res[i]; });
   derivar();
+  actualizarCampana();
+  programarRecordatorios();
+  avisarWeb();
   if (falta && !avisoMigracion) { avisoMigracion = true; toast('Falta actualizar la base: ejecuta otra vez supabase/schema.sql en Supabase', 6000); }
 }
 async function refrescar() { barraCarga(true); try { await cargar(); } finally { barraCarga(false); } render(); }
@@ -1327,6 +1330,7 @@ const TOURS = {
     P('#tabs [data-tab="agenda"]', 'Calendario', 'Todos tus pagos y eventos del mes. Pásalos a Google Calendar para que te lleguen recordatorios.'),
     P('#tabs [data-tab="grupo"]', 'Grupo', 'Comparte gastos con tus roomies: la app calcula quién le debe a quién. Tú decides qué compartir.'),
     P('#fab', 'Botón +', 'Agrega lo que necesites. Cambia según la sección donde estés.', 'left'),
+    P('#btn-avisos', 'Notificaciones', 'Aquí ves pagos por vencer, presupuestos que se van a pasar y lo que registren tus roomies. Desde Ajustes eliges cuándo avisarte.', 'bottom'),
     P('#btn-tour', '¿Dudas?', 'Toca este botón en cualquier sección y te explico lo que hay en ella.', 'bottom')
   ],
   resumen: [
@@ -1402,6 +1406,338 @@ function tourBienvenida() {
 }
 $('#btn-tour').addEventListener('click', () => iniciarTour(tab));
 
+/* =====================================================================
+   Notificaciones
+   · Centro de avisos (campanita): se calcula de tus datos cada vez que cargan.
+   · Android: recordatorios programados en el celular (llegan con la app cerrada).
+   · Web: aviso del navegador al abrir la página si tienes pagos hoy.
+   ===================================================================== */
+const AJ_DEF = { activas: true, anticipacion: 1, mismoDia: true, hora: '09:00',
+  deudas: true, fijos: true, eventos: true, metas: true, grupo: true, semanal: true };
+const ICONO_TIPO = { deuda: 'credit-card-2-front', fijo: 'arrow-repeat', evento: 'calendar-event', meta: 'bullseye' };
+const TAB_TIPO = { deuda: 'deudas', fijo: 'fijos', evento: 'agenda', meta: 'metas' };
+const lsJSON = (k, def) => { try { return JSON.parse(localStorage.getItem(k) || 'null') ?? def; } catch { return def; } };
+const lsPut = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin almacenamiento */ } };
+const claveAj = () => 'misfinanzas_avisos_' + ME;
+const ajustesAvisos = () => ({ ...AJ_DEF, ...lsJSON(claveAj(), {}) });
+const tipoActivo = (aj, tipo) => ({ deuda: aj.deudas, fijo: aj.fijos, evento: aj.eventos, meta: aj.metas })[tipo] !== false;
+const leidas = () => new Set(lsJSON('misfinanzas_leidas_' + ME, []));
+function marcarLeidas(ids) {
+  const s = leidas(); ids.forEach(i => s.add(i));
+  lsPut('misfinanzas_leidas_' + ME, [...s].slice(-500));
+}
+function haceCuanto(fecha) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(fecha)) / 60000));
+  if (min < 1) return 'justo ahora';
+  if (min < 60) return `hace ${min} min`;
+  const h = Math.round(min / 60); if (h < 24) return `hace ${h} h`;
+  const d = Math.round(h / 24); return d === 1 ? 'ayer' : `hace ${d} días`;
+}
+const cuandoTexto = dias => dias <= 0 ? 'Hoy' : dias === 1 ? 'Mañana' : `En ${dias} días`;
+
+/* ---------- Centro de avisos ---------- */
+function calcularAvisos() {
+  const aj = ajustesAvisos(), hoy = hoyD(), mesK = today().slice(0, 7), out = [];
+  // Pagos y eventos de los próximos 7 días
+  proximos(7).forEach(e => {
+    if (!tipoActivo(aj, e.tipo)) return;
+    const dias = Math.round((e.fecha - hoy) / 864e5);
+    out.push({
+      id: `pago|${e.ref?.t}|${e.ref?.id}|${iso(e.fecha)}`, seccion: dias <= 1 ? 'hoy' : 'pronto', orden: dias,
+      icono: ICONO_TIPO[e.tipo] || 'bell', tono: dias === 0 ? 'bad' : dias === 1 ? 'warn' : 'info',
+      titulo: `${cuandoTexto(dias)}: ${e.txt}`,
+      texto: [e.monto ? money(e.monto) : '', fLarga(e.fecha), e.hora ? String(e.hora).slice(0, 5) : '', e.grupo ? nombreGrupo(e.grupo) : ''].filter(Boolean).join(' · '),
+      tab: TAB_TIPO[e.tipo] || 'agenda'
+    });
+  });
+  // Presupuestos al 80% y rebasados
+  const gm = S.gastos.filter(enRango(mesIni(), mesIni(new Date(), 1)));
+  S.presupuestos.forEach(p => {
+    const g = sum(gm.filter(x => x.categoria === p.categoria)), pp = pct(g, p.limite_mensual);
+    if (pp < 80) return;
+    out.push({ id: `pres|${p.id}|${mesK}|${pp >= 100 ? 100 : 80}`, seccion: 'consejos', orden: 1, icono: 'wallet2', tono: pp >= 100 ? 'bad' : 'warn',
+      titulo: pp >= 100 ? `Te pasaste en ${p.categoria}` : `Llevas ${pp}% de tu presupuesto de ${p.categoria}`,
+      texto: `${money(g)} de ${money(p.limite_mensual)} este mes`, tab: 'metas' });
+  });
+  // Metas logradas
+  S.metas.filter(m => Number(m.ahorrado) >= Number(m.objetivo)).forEach(m =>
+    out.push({ id: `meta-ok|${m.id}`, seccion: 'consejos', orden: 0, icono: 'trophy', tono: 'ok',
+      titulo: `¡Lograste tu meta "${m.nombre}"!`, texto: `Juntaste ${money(m.ahorrado)}`, tab: 'metas' }));
+  // Fugas importantes y metas en riesgo
+  detectarFugas().filter(f => f.nivel === 'alta' || f.titulo.startsWith('Meta')).slice(0, 5).forEach(f =>
+    out.push({ id: `fuga|${f.titulo}|${mesK}`, seccion: 'consejos', orden: f.nivel === 'alta' ? 2 : 3,
+      icono: f.titulo.startsWith('Meta') ? 'bullseye' : 'exclamation-triangle', tono: f.nivel === 'alta' ? 'bad' : 'warn',
+      titulo: f.titulo, texto: f.detalle, tab: 'resumen' }));
+  // Grupos: saldo pendiente y actividad de los compañeros (últimos 7 días)
+  if (aj.grupo) {
+    const desde = Date.now() - 7 * 864e5;
+    misGrupos().forEach(g => {
+      const v = Math.round((balances(g.id)[ME] || 0) * 100) / 100;
+      if (Math.abs(v) >= 1) out.push({ id: `saldo|${g.id}|${Math.round(v)}`, seccion: 'grupo', orden: 0, icono: v > 0 ? 'cash-coin' : 'cash-stack', tono: v > 0 ? 'ok' : 'warn',
+        titulo: v > 0 ? `Te deben ${money(v)} en ${g.nombre}` : `Debes ${money(-v)} en ${g.nombre}`,
+        texto: 'Toca para ver cómo quedar a mano', tab: 'grupo', grupo: g.id });
+    });
+    const reciente = r => r.grupo_id && !esMio(r) && new Date(r.created_at).getTime() > desde;
+    const act = [];
+    R.gastos.filter(reciente).forEach(r => act.push({ r, tabla: 'gastos', icono: 'receipt',
+      titulo: `${aliasDe(r.user_id, r.grupo_id)} agregó "${r.concepto}"`,
+      texto: `${money(r.monto)} · tu parte ${money(miParte(r))}` }));
+    R.liquidaciones.filter(l => !esMio(l) && new Date(l.created_at).getTime() > desde && (l.de === ME || l.para === ME)).forEach(r => act.push({ r, tabla: 'liquidaciones', icono: 'cash-coin',
+      titulo: r.para === ME ? `${aliasDe(r.de, r.grupo_id)} te pagó ${money(r.monto)}` : `${aliasDe(r.para, r.grupo_id)} registró que le pagaste ${money(r.monto)}`,
+      texto: nombreGrupo(r.grupo_id) }));
+    R.eventos.filter(reciente).forEach(r => act.push({ r, tabla: 'eventos', icono: 'calendar-plus',
+      titulo: `${aliasDe(r.user_id, r.grupo_id)} agendó "${r.titulo}"`, texto: fLarga(r.fecha) }));
+    R.recurrentes.filter(reciente).forEach(r => act.push({ r, tabla: 'recurrentes', icono: 'arrow-repeat',
+      titulo: `${aliasDe(r.user_id, r.grupo_id)} agregó el gasto fijo "${r.nombre}"`, texto: `${money(r.monto)} ${r.frecuencia}` }));
+    R.metas.filter(reciente).forEach(r => act.push({ r, tabla: 'metas', icono: 'bullseye',
+      titulo: `${aliasDe(r.user_id, r.grupo_id)} creó la meta "${r.nombre}"`, texto: money(r.objetivo) }));
+    R.miembros.filter(m => m.user_id !== ME && misGrupos().some(g => g.id === m.grupo_id) && new Date(m.created_at).getTime() > desde)
+      .forEach(m => act.push({ r: m, tabla: 'miembros', icono: 'person-plus', titulo: `${m.alias} se unió a ${nombreGrupo(m.grupo_id)}`, texto: '' }));
+    act.sort((a, b) => new Date(b.r.created_at) - new Date(a.r.created_at)).slice(0, 15).forEach((a, i) =>
+      out.push({ id: `act|${a.tabla}|${a.r.id}`, seccion: 'grupo', orden: 1 + i, icono: a.icono, tono: 'info',
+        titulo: a.titulo, texto: [a.texto, haceCuanto(a.r.created_at)].filter(Boolean).join(' · '), tab: 'grupo', grupo: a.r.grupo_id }));
+  }
+  const ORD = { hoy: 0, pronto: 1, grupo: 2, consejos: 3 };
+  return out.sort((a, b) => ORD[a.seccion] - ORD[b.seccion] || a.orden - b.orden);
+}
+
+let avisosCache = [], ultimoConteo = -1;
+function actualizarCampana() {
+  if (!ME) return;
+  avisosCache = calcularAvisos();
+  const vistas = leidas(), n = avisosCache.filter(a => !vistas.has(a.id)).length;
+  const badge = $('#avisos-badge'), btn = $('#btn-avisos');
+  if (!badge || !btn) return;
+  badge.textContent = n > 9 ? '9+' : String(n);
+  badge.hidden = n === 0;
+  btn.setAttribute('aria-label', n ? `Notificaciones: ${n} sin leer` : 'Notificaciones');
+  if (n > ultimoConteo && ultimoConteo >= 0 && !sinMovimiento()) { btn.classList.remove('suena'); void btn.offsetWidth; btn.classList.add('suena'); }
+  ultimoConteo = n;
+}
+
+function abrirAvisos() {
+  actualizarCampana();
+  const vistas = leidas();
+  const TITULOS = { hoy: 'Hoy y mañana', pronto: 'Próximos días', grupo: 'Tu grupo', consejos: 'Para tus finanzas' };
+  const secciones = Object.keys(TITULOS).map(sec => {
+    const items = avisosCache.filter(a => a.seccion === sec);
+    if (!items.length) return '';
+    return `<h3 class="avisos-titulo">${TITULOS[sec]}</h3><div class="grid gap-1.5">${items.map(a => `
+      <button type="button" class="aviso ${vistas.has(a.id) ? '' : 'nuevo'}" data-aviso="${esc(a.id)}">
+        <span class="aviso-ic tono-${a.tono}"><i class="bi bi-${a.icono}" aria-hidden="true"></i></span>
+        <span class="min-w-0 flex-1"><b>${esc(a.titulo)}</b>${a.texto ? `<small>${esc(a.texto)}</small>` : ''}</span>
+        ${vistas.has(a.id) ? '' : '<i class="aviso-punto" aria-label="sin leer"></i>'}
+      </button>`).join('')}</div>`;
+  }).join('');
+  const vacio = `<div class="empty"><i class="bi bi-bell-slash text-3xl block mb-2" aria-hidden="true"></i>Todo al día. Aquí te avisaré de pagos próximos, presupuestos y lo que registren tus roomies.</div>`;
+  const ids = avisosCache.map(a => a.id);
+  SWAL.fire({
+    title: '<i class="bi bi-bell" aria-hidden="true"></i> Notificaciones', width: 520,
+    html: `<div class="avisos text-left">${secciones || vacio}</div>`,
+    showConfirmButton: false, showDenyButton: true, showCancelButton: true,
+    denyButtonText: '<i class="bi bi-gear" aria-hidden="true"></i> Ajustes', cancelButtonText: 'Cerrar',
+    didOpen: popup => popup.querySelectorAll('[data-aviso]').forEach(b => b.addEventListener('click', () => {
+      const a = avisosCache.find(x => x.id === b.dataset.aviso); if (!a) return;
+      marcarLeidas(ids); Swal.close();
+      if (a.grupo) grupoSel = a.grupo;
+      tab = a.tab; render(true); window.scrollTo({ top: 0 });
+    })),
+    willClose: () => { marcarLeidas(ids); setTimeout(actualizarCampana, 0); }
+  }).then(r => { if (r.isDenied) abrirAjustesAvisos(); });
+}
+
+/* ---------- Ajustes de avisos ---------- */
+async function estadoPermiso() {
+  if (NATIVO && PLUG.LocalNotifications) {
+    try { return (await PLUG.LocalNotifications.checkPermissions()).display; } catch { return 'denied'; }
+  }
+  if (!('Notification' in window)) return 'no-soportado';
+  return Notification.permission === 'default' ? 'prompt' : Notification.permission;
+}
+async function pedirPermiso() {
+  if (NATIVO && PLUG.LocalNotifications) {
+    try { return (await PLUG.LocalNotifications.requestPermissions()).display; } catch { return 'denied'; }
+  }
+  if (!('Notification' in window)) return 'no-soportado';
+  return await Notification.requestPermission();
+}
+async function abrirAjustesAvisos() {
+  const aj = ajustesAvisos(), permiso = await estadoPermiso();
+  let pendientes = null;
+  if (NATIVO && PLUG.LocalNotifications) { try { pendientes = (await PLUG.LocalNotifications.getPending()).notifications.length; } catch { /* nada */ } }
+  const chk = (k, l, i) => `<label class="check"><input type="checkbox" name="${k}" ${aj[k] ? 'checked' : ''}><i class="bi bi-${i} text-muted" aria-hidden="true"></i>${l}</label>`;
+  const estado = {
+    granted: `<span class="badge ok"><i class="bi bi-check2-circle"></i> Permitidas</span>`,
+    denied: `<span class="badge bad"><i class="bi bi-x-circle"></i> Bloqueadas</span>`,
+    prompt: `<span class="badge warn">Sin permiso todavía</span>`, 'prompt-with-rationale': `<span class="badge warn">Sin permiso todavía</span>`,
+    'no-soportado': `<span class="badge">No disponibles en este navegador</span>`
+  }[permiso] || '';
+  const ayudaBloqueo = permiso === 'denied'
+    ? `<p class="small muted nota-grupo">${NATIVO ? 'Actívalas en <b>Ajustes del celular → Apps → Mis Finanzas → Notificaciones</b>.' : 'Actívalas desde el candado junto a la dirección de la página.'}</p>` : '';
+  const html = `<form id="form-avisos" class="grid gap-3 text-left">
+    <div class="flex flex-wrap items-center justify-between gap-2"><span class="small muted">${NATIVO ? 'Avisos en este celular' : 'Avisos de este navegador'}</span>${estado}</div>
+    ${ayudaBloqueo}
+    ${chk('activas', '<b>Recordatorios de pagos y eventos</b>', 'bell')}
+    <div class="grid grid-cols-2 gap-3">
+      <label>¿Con cuánta anticipación?<select name="anticipacion">${[[0, 'Solo el mismo día'], [1, '1 día antes'], [2, '2 días antes'], [3, '3 días antes'], [7, '1 semana antes']].map(([v, t]) => `<option value="${v}" ${Number(aj.anticipacion) === v ? 'selected' : ''}>${t}</option>`).join('')}</select></label>
+      <label>¿A qué hora?<input type="time" name="hora" value="${esc(aj.hora)}" required></label>
+    </div>
+    ${chk('mismoDia', 'Avisarme también el mismo día', 'alarm')}
+    <fieldset><legend>Avisarme de</legend><div class="grid grid-cols-2 gap-2">
+      ${chk('deudas', 'Deudas', 'credit-card-2-front')}${chk('fijos', 'Gastos fijos', 'arrow-repeat')}
+      ${chk('eventos', 'Eventos', 'calendar-event')}${chk('metas', 'Fechas de metas', 'bullseye')}
+    </div></fieldset>
+    ${chk('grupo', 'Lo que registren mis roomies', 'people')}
+    ${NATIVO ? chk('semanal', 'Resumen semanal (domingos 7 pm)', 'graph-up-arrow') : ''}
+    <p class="small muted">${NATIVO
+      ? `Los recordatorios llegan aunque la app esté cerrada y se actualizan cada vez que la abres.${pendientes !== null ? ` Programados ahora: <b>${pendientes}</b>.` : ''}`
+      : `En la web te aviso al abrir la página. Para recordatorios aunque esté cerrada, usa la app Android${APK_URL ? ` (<a href="${APK_URL}" class="underline">descargar</a>)` : ''}.`}</p>
+    <button type="button" class="btn ghost small justify-self-start" data-act="probar-aviso"><i class="bi bi-send" aria-hidden="true"></i>Enviar notificación de prueba</button>
+  </form>`;
+  const leer = () => {
+    const f = document.getElementById('form-avisos');
+    const v = k => f.elements[k]?.checked;
+    return { activas: v('activas'), anticipacion: Number(f.elements.anticipacion.value), mismoDia: v('mismoDia') || Number(f.elements.anticipacion.value) === 0,
+      hora: f.elements.hora.value || '09:00', deudas: v('deudas'), fijos: v('fijos'), eventos: v('eventos'), metas: v('metas'), grupo: v('grupo'),
+      semanal: NATIVO ? v('semanal') : aj.semanal };
+  };
+  const r = await SWAL.fire({
+    title: '<i class="bi bi-gear" aria-hidden="true"></i> Ajustes de avisos', html, width: 540,
+    showCancelButton: true, confirmButtonText: '<i class="bi bi-check2" aria-hidden="true"></i> Guardar', focusConfirm: false,
+    didOpen: popup => popup.querySelector('[data-act="probar-aviso"]').addEventListener('click', async e => {
+      const b = e.currentTarget; b.disabled = true;
+      const ok = await notificacionPrueba();
+      b.disabled = false;
+      b.innerHTML = ok ? '<i class="bi bi-check2" aria-hidden="true"></i>Enviada' : '<i class="bi bi-x-circle" aria-hidden="true"></i>Sin permiso';
+    }),
+    preConfirm: async () => {
+      const nuevo = leer();
+      if (nuevo.activas && !['granted', 'no-soportado'].includes(await estadoPermiso())) {
+        const p = await pedirPermiso();
+        if (p !== 'granted' && p !== 'no-soportado') Swal.showValidationMessage('Sin permiso no puedo avisarte. Se guardan tus preferencias de todos modos.');
+      }
+      return nuevo;
+    }
+  });
+  if (!r.isConfirmed) return;
+  lsPut(claveAj(), r.value);
+  actualizarCampana();
+  await programarAhora();
+  avisarWeb(true);
+  toast('Ajustes de avisos guardados');
+}
+
+/* ---------- Recordatorios en Android ---------- */
+// id numérico estable (los recordatorios de Android usan enteros de 32 bits)
+const idNotif = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 1) || 1; };
+const BASE_NOTIF = { channelId: 'recordatorios', smallIcon: 'ic_stat_notificacion', iconColor: '#1f7a55', autoCancel: true, isExactNotification: false };
+function construirRecordatorios(aj, ahora = new Date()) {
+  const [hh, mm] = String(aj.hora || '09:00').split(':').map(Number), out = [];
+  if (!aj.activas) return out;
+  proximos(45).forEach(e => {
+    if (!tipoActivo(aj, e.tipo)) return;
+    const que = { deuda: 'Pago de deuda', fijo: 'Gasto fijo', evento: e.etiqueta || 'Evento', meta: 'Fecha de tu meta' }[e.tipo] || 'Recordatorio';
+    const disparos = [];
+    if (Number(aj.anticipacion) > 0) {
+      const d = addDays(e.fecha, -Number(aj.anticipacion)); d.setHours(hh, mm, 0, 0);
+      disparos.push({ at: d, cuando: cuandoTexto(Number(aj.anticipacion)) });
+    }
+    if (aj.mismoDia || Number(aj.anticipacion) === 0) {
+      const d = new Date(e.fecha);
+      if (e.hora) { const [h2, m2] = String(e.hora).split(':').map(Number); d.setHours(h2, (m2 || 0) - 30, 0, 0); }   // 30 min antes de la hora del evento
+      else d.setHours(hh, mm, 0, 0);
+      disparos.push({ at: d, cuando: 'Hoy' });
+    }
+    disparos.forEach(({ at, cuando }) => {
+      if (at <= ahora) return;
+      out.push({ ...BASE_NOTIF, id: idNotif(`${e.ref?.t}|${e.ref?.id}|${iso(e.fecha)}|${cuando}`),
+        title: `${cuando}: ${e.txt}`,
+        body: [e.monto ? money(e.monto) : '', que, e.hora ? `a las ${String(e.hora).slice(0, 5)}` : '', e.grupo ? `compartido en ${nombreGrupo(e.grupo)}` : ''].filter(Boolean).join(' · '),
+        schedule: { at, allowWhileIdle: true }, extra: { tab: TAB_TIPO[e.tipo] || 'agenda' } });
+    });
+  });
+  out.sort((a, b) => a.schedule.at - b.schedule.at);
+  const lista = out.slice(0, 60);
+  if (aj.semanal) lista.push({ ...BASE_NOTIF, id: idNotif('resumen-semanal'), title: 'Tu resumen de la semana',
+    body: 'Revisa cuánto ganaste, en qué se fue tu dinero y lo que viene por pagar.',
+    schedule: { on: { weekday: 1, hour: 19, minute: 0 }, allowWhileIdle: true }, extra: { tab: 'resumen' } });
+  return lista;
+}
+let reprogTimer = null, reprogEnCurso = Promise.resolve();
+function programarRecordatorios() { clearTimeout(reprogTimer); reprogTimer = setTimeout(programarAhora, 900); }
+function programarAhora() {
+  const ln = NATIVO ? PLUG.LocalNotifications : null;
+  if (!ln || !ME) return Promise.resolve();
+  reprogEnCurso = reprogEnCurso.then(async () => {
+    try {
+      const pend = (await ln.getPending()).notifications || [];
+      if (pend.length) await ln.cancel({ notifications: pend.map(n => ({ id: n.id })) });
+      if ((await ln.checkPermissions()).display !== 'granted') return;
+      const lista = construirRecordatorios(ajustesAvisos());
+      if (lista.length) await ln.schedule({ notifications: lista });
+    } catch (err) { console.warn('No se pudieron programar los recordatorios', err); }
+  });
+  return reprogEnCurso;
+}
+async function cancelarRecordatorios() {
+  const ln = NATIVO ? PLUG.LocalNotifications : null; if (!ln) return;
+  try { const p = (await ln.getPending()).notifications || []; if (p.length) await ln.cancel({ notifications: p.map(n => ({ id: n.id })) }); } catch { /* nada */ }
+}
+async function notificacionPrueba() {
+  if ((await estadoPermiso()) !== 'granted' && (await pedirPermiso()) !== 'granted') return false;
+  const titulo = '¡Las notificaciones funcionan!', texto = 'Así te avisaré de tus pagos, gastos fijos y eventos.';
+  if (NATIVO && PLUG.LocalNotifications) {
+    await PLUG.LocalNotifications.schedule({ notifications: [{ ...BASE_NOTIF, id: idNotif('prueba|' + Date.now()), title: titulo, body: texto, extra: { tab } }] });
+    return true;
+  }
+  return mostrarNotificacionWeb(titulo, texto, tab, 'prueba');
+}
+// Primera vez en la app: ofrecer los recordatorios (después del recorrido de bienvenida)
+async function ofrecerAvisos(intentos = 0) {
+  if (!NATIVO || !PLUG.LocalNotifications || !ME) return;
+  if (tourActual?.isActive?.() || Swal.isVisible()) { if (intentos < 60) setTimeout(() => ofrecerAvisos(intentos + 1), 2000); return; }
+  const clave = 'misfinanzas_avisos_ofrecidos_' + ME;
+  if (lsJSON(clave, false)) return;
+  const permiso = await estadoPermiso();
+  lsPut(clave, true);
+  if (permiso === 'granted') { programarAhora(); return; }
+  if (permiso === 'denied') return;
+  const r = await SWAL.fire({
+    icon: 'question', iconHtml: '<i class="bi bi-bell"></i>', title: '¿Te aviso de tus pagos?',
+    text: 'Te mando un recordatorio antes de cada pago de deuda, gasto fijo o evento, aunque la app esté cerrada.',
+    showCancelButton: true, confirmButtonText: 'Sí, avísame', cancelButtonText: 'Ahora no'
+  });
+  if (r.isConfirmed && (await pedirPermiso()) === 'granted') { await programarAhora(); toast('Listo, te avisaré antes de cada pago'); }
+}
+
+/* ---------- Notificaciones del navegador (web) ---------- */
+async function mostrarNotificacionWeb(titulo, texto, destino, etiqueta) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return false;
+  const op = { body: texto, icon: 'icon-192.png', badge: 'icon-192.png', tag: etiqueta, data: { tab: destino } };
+  try {
+    const reg = await navigator.serviceWorker?.getRegistration?.();
+    if (reg) { await reg.showNotification(titulo, op); return true; }
+    const n = new Notification(titulo, op);
+    n.onclick = () => { window.focus(); if (VISTAS[destino]) { tab = destino; render(true); } n.close(); };
+    return true;
+  } catch { return false; }
+}
+// Al abrir la web: un aviso con los pagos de hoy (una vez al día)
+function avisarWeb(forzar = false) {
+  if (NATIVO || !ME || !('Notification' in window) || Notification.permission !== 'granted') return;
+  const aj = ajustesAvisos(); if (!aj.activas) return;
+  const clave = 'misfinanzas_web_avisado_' + ME, hoyK = today();
+  if (!forzar && lsJSON(clave, '') === hoyK) return;
+  const hoy = proximos(Number(aj.anticipacion) > 0 ? 1 : 0).filter(e => tipoActivo(aj, e.tipo) && !e.info);
+  if (!hoy.length) return;
+  lsPut(clave, hoyK);
+  const total = sum(hoy);
+  mostrarNotificacionWeb(hoy.length === 1 ? hoy[0].txt : `Tienes ${hoy.length} pagos pronto`,
+    hoy.slice(0, 3).map(e => `${cuandoTexto(Math.round((e.fecha - hoyD()) / 864e5))}: ${e.txt}${e.monto ? ' ' + money(e.monto) : ''}`).join('\n') + (hoy.length > 3 ? `\n… total ${money(total)}` : ''),
+    'agenda', 'pagos-hoy');
+}
+$('#btn-avisos').addEventListener('click', abrirAvisos);
+
 /* ---------- Arranque y sesión ---------- */
 let usuario = null;
 async function mostrarApp() {
@@ -1413,6 +1749,7 @@ async function mostrarApp() {
   try { await cargar(); } catch (err) { toast('No se pudieron cargar tus datos: ' + err.message); }
   render(true);
   tourBienvenida();
+  setTimeout(() => ofrecerAvisos(), 2500);
 }
 function mostrarLogin() { $('#app').hidden = true; $('#login').hidden = false; ocultarCargador(); }
 
@@ -1458,7 +1795,7 @@ async function boot() {
       if (nueva) { const { error } = await sb.auth.updateUser({ password: nueva }); toast(error ? error.message : 'Contraseña actualizada'); }
     }, 0);
     if (ev === 'SIGNED_IN' && !usuario) { usuario = s.user; setTimeout(mostrarApp, 0); }
-    if (ev === 'SIGNED_OUT') { usuario = null; ME = null; TABLAS.forEach(t => (R[t] = [])); urlCache.clear(); mostrarLogin(); }
+    if (ev === 'SIGNED_OUT') { cancelarRecordatorios(); ultimoConteo = -1; usuario = null; ME = null; TABLAS.forEach(t => (R[t] = [])); urlCache.clear(); mostrarLogin(); }
   });
   // Al volver a la app, trae lo que hayan registrado tus compañeros
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && usuario && !Swal.isVisible()) refrescar(); });
@@ -1473,6 +1810,11 @@ boot().catch(err => {
 setTimeout(ocultarCargador, 10000);   // por si algo se atora, nunca dejar la pantalla de carga fija
 
 if (!NATIVO && 'serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+
+/* ---------- Abrir una sección desde una notificación ---------- */
+const irA = t => { if (!VISTAS[t]) return; tab = t; if (!$('#app').hidden) { render(true); window.scrollTo({ top: 0 }); } };
+{ const t = new URLSearchParams(location.search).get('tab'); if (t && VISTAS[t]) tab = t; }
+navigator.serviceWorker?.addEventListener?.('message', e => { if (e.data?.tipo === 'abrir-tab') irA(e.data.tab); });
 
 /* ---------- Integración con Android ---------- */
 // Botón descargar app (solo en la web)
@@ -1492,5 +1834,12 @@ if (NATIVO) {
     PLUG.App.exitApp();
   });
   // Al regresar a la app, trae lo que hayan registrado tus compañeros
-  PLUG.App?.addListener('resume', () => { if (usuario && !Swal.isVisible()) refrescar(); });
+  PLUG.App?.addListener('resume', () => { if (usuario && !Swal.isVisible()) refrescar(); else programarRecordatorios(); });
+  // Notificaciones: canal de Android y abrir la sección al tocar el aviso
+  const LN = PLUG.LocalNotifications;
+  if (LN) {
+    LN.createChannel?.({ id: 'recordatorios', name: 'Recordatorios de pagos', description: 'Pagos de deudas, gastos fijos, eventos y resumen semanal',
+      importance: 4, visibility: 1, vibration: true, lights: true, lightColor: '#1f7a55' }).catch(() => {});
+    LN.addListener('localNotificationActionPerformed', a => irA(a?.notification?.extra?.tab));
+  }
 }

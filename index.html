@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#1f7a55">
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="apple-touch-icon" href="icon-192.png">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <!-- Seguridad: solo se ejecuta código de este mismo sitio; los datos solo viajan a Supabase -->
@@ -59,6 +59,7 @@
         <span id="user-chip" class="badge" hidden></span>
         <span id="demo-badge" class="badge warn" hidden title="Los datos se guardan solo en este navegador">Modo demo</span>
         <a data-apk hidden class="btn ghost small" title="Descargar la app para Android" download><i class="bi bi-android2"></i><span class="hidden sm:inline">App Android</span></a>
+        <button id="btn-avisos" class="icon-btn ayuda campana" type="button" title="Notificaciones" aria-label="Notificaciones"><i class="bi bi-bell"></i><span id="avisos-badge" class="badge-num" hidden>0</span></button>
         <button id="btn-tour" class="icon-btn ayuda" type="button" title="Guía de esta sección" aria-label="Guía de esta sección"><i class="bi bi-question-lg"></i></button>
         <button id="btn-logout" class="btn ghost small" title="Cerrar sesión" hidden><i class="bi bi-box-arrow-right"></i><span class="hidden sm:inline">Salir</span></button>
       </div>

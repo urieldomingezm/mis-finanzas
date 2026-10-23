@@ -422,3 +422,29 @@
     transition-duration: .01ms !important; scroll-behavior: auto !important; }
   .logo-carga .barra { transform: none; }
 }
+
+/* =====================================================================
+   Notificaciones
+   ===================================================================== */
+.campana { position: relative; }
+.badge-num { position: absolute; top: -4px; right: -5px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 999px;
+  display: grid; place-items: center; background: var(--bad); color: #fff; font-size: 10px; font-weight: 800; line-height: 1;
+  border: 2px solid var(--bg); animation: pop-entrar .3s cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes sonar { 0%, 100% { transform: rotate(0); } 15% { transform: rotate(14deg); } 30% { transform: rotate(-12deg); } 45% { transform: rotate(9deg); } 60% { transform: rotate(-6deg); } 75% { transform: rotate(3deg); } }
+.campana.suena .bi { animation: sonar .9s ease; transform-origin: 50% 10%; }
+.avisos { display: grid; gap: .25rem; }
+.avisos-titulo { @apply mt-3 mb-1 text-xs font-bold uppercase tracking-wider text-muted first:mt-0; }
+.aviso { @apply flex w-full items-start gap-3 rounded-xl border border-transparent px-3 py-2.5 text-left text-ink transition;
+  animation: entrar-arriba .3s cubic-bezier(.2, .75, .2, 1) both; }
+.aviso:hover { @apply bg-surface-2; }
+.aviso.nuevo { @apply border-line bg-surface-2; }
+.aviso b { @apply block text-sm leading-snug; }
+.aviso small { @apply mt-0.5 block text-xs leading-snug text-muted; }
+.aviso:not(.nuevo) b { @apply font-semibold; }
+.aviso-ic { @apply grid size-9 flex-none place-items-center rounded-full text-base; }
+.tono-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.tono-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 16%, transparent); }
+.tono-info { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+.tono-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.aviso-punto { @apply mt-1.5 size-2.5 flex-none rounded-full bg-brand; }
+.swal2-popup.swal-app .swal2-icon .bi { font-size: 2rem; }

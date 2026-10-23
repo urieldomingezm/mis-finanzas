@@ -108,6 +108,22 @@ Si alguien sale del grupo deja de ver lo compartido. Lo que esa persona registr�
 
 **Recomendado en el panel de Supabase** (Authentication → Sign In / Providers → Email): deja activado *Confirm email* y sube *Minimum password length* a 8.
 
+## Notificaciones
+**Campanita (web y app):** junta en un solo lugar
+- pagos de deudas, gastos fijos, eventos y fechas de metas de los próximos 7 días;
+- presupuestos al 80% o rebasados, metas logradas o en riesgo y fugas importantes;
+- lo que registren tus roomies (gastos, pagos, eventos, fijos, metas, nuevos miembros) y si debes o te deben.
+
+El número rojo indica cuántos avisos no has visto. Al tocar un aviso te lleva a su sección.
+
+**App Android:** recordatorios programados en el celular que llegan **aunque la app esté cerrada** (también tras reiniciar el teléfono). La primera vez la app pregunta si quieres activarlos. Se vuelven a programar cada vez que abres la app o cambian tus datos.
+
+**Web:** al abrir la página, si tienes pagos hoy o mañana, aparece un aviso del navegador (una vez al día). El navegador no puede avisar con la página cerrada; para eso está la app Android.
+
+**Ajustes** (campanita → *Ajustes*): con cuánta anticipación (mismo día, 1, 2, 3 días o una semana antes), a qué hora, si avisa también el mismo día, de qué tipos (deudas, fijos, eventos, metas, actividad del grupo) y el resumen semanal de los domingos 7 pm. Incluye un botón para enviar una notificación de prueba.
+
+> Los recordatorios no usan alarmas exactas, así que Android puede entregarlos con unos minutos de diferencia para ahorrar batería. Si no te llegan, revisa *Ajustes del celular → Apps → Mis Finanzas → Notificaciones* y que la app no tenga restringida la batería.
+
 ## Ventanas y formularios
 Todas las ventanas usan [SweetAlert2](https://sweetalert2.github.io): formularios, confirmaciones, menú rápido, visor de evidencias y cambio de contraseña. Los formularios largos son un **wizard por pasos** con *Siguiente / Atrás*:
 - **Gasto**: qué gastaste → con quién se comparte (solo si tienes grupo) → notas y evidencia
