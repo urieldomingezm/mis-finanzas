@@ -663,3 +663,86 @@
 .gcal span { display: none; }
 .gcal { width: 2.25rem; height: 2.25rem; justify-content: center; padding: 0; font-size: .95rem; border-radius: 10px; }
 .gcal:hover { background: var(--surface-2); border-color: transparent; }
+
+/* =====================================================================
+   Formularios compactos a dos columnas y botones ordenados
+   ===================================================================== */
+.form-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: .75rem; row-gap: .75rem; align-items: start; }
+.form-cols > .span-2 { grid-column: 1 / -1; }
+.form-cols > label.check:not(.span-2) { align-self: end; min-height: 2.75rem; }
+#swal-form label, #form-avisos label { font-size: .8rem; font-weight: 600; }
+#swal-form input:not([type=checkbox]):not([type=file]), #swal-form select { margin-top: .3rem; min-height: 2.75rem; padding: .55rem .75rem; font-size: .95rem; }
+#swal-form label.check { font-size: .9rem; font-weight: 500; }
+.hint { display: block; margin-top: .25rem; font-size: .72rem; font-weight: 400; color: var(--muted); }
+
+/* $ y % dentro del campo */
+.input-pre { position: relative; display: block; }
+.input-pre > b { position: absolute; left: .8rem; top: calc(50% + .15rem); transform: translateY(-50%); color: var(--muted); font-weight: 600; font-size: .95rem; pointer-events: none; }
+#swal-form .input-pre input { padding-left: 1.65rem; }
+.input-pre.suf > b { left: auto; right: .8rem; }
+#swal-form .input-pre.suf input { padding-left: .75rem; padding-right: 1.9rem; }
+input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+
+/* Evidencias: zona para tocar, de ancho completo */
+.adj-field .lbl { font-size: .8rem; font-weight: 600; }
+.file-btn { display: flex; align-items: center; gap: .75rem; width: 100%; padding: .75rem .9rem; border-radius: 12px; cursor: pointer; color: var(--text);
+  border: 1.5px dashed color-mix(in srgb, var(--brand) 40%, var(--line)); background: color-mix(in srgb, var(--brand) 5%, var(--surface)); transition: background-color .15s; }
+.file-btn:hover { background: color-mix(in srgb, var(--brand) 10%, var(--surface)); }
+.file-btn > .bi { font-size: 1.3rem; color: var(--brand); }
+.file-btn b { display: block; font-size: .9rem; font-weight: 600; }
+.file-btn small { display: block; font-size: .75rem; color: var(--muted); font-weight: 400; }
+
+/* Reparto entre compañeros: chips en fila */
+.chips-field { padding: .6rem .75rem .5rem; }
+.chips-field legend { font-size: .8rem; font-weight: 600; }
+
+/* Botones de las ventanas: Cancelar a la izquierda, avanzar a la derecha */
+.swal-acciones { gap: .5rem; }
+.swal-acciones .btn { min-width: 0; padding: .65rem 1.1rem; }
+@media (width >= 40rem) {
+  .swal-acciones .swal2-cancel { margin-right: auto; }
+  .swal-acciones .swal2-confirm { min-width: 9rem; }
+}
+@media (width < 40rem) {
+  .swal-acciones { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+  .swal-acciones .btn { width: 100%; }
+}
+.wizard-pasos { margin-bottom: .25rem; }
+
+/* Tarjetas con acciones: botones parejos a lo ancho */
+.dcard .actions, .members + .actions, .intro .actions { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: .5rem; }
+.dcard .actions .btn, .members + .actions .btn, .intro .actions .btn { width: 100%; }
+@media (width < 30rem) { .members + .actions { grid-auto-flow: row; } }
+
+/* Cuadros vacíos más compactos; en espacios anchos se acomodan en una sola fila */
+.list, .card, .section, .zona-proximos, .zona-fugas { container-type: inline-size; }
+.empty { gap: .6rem; padding: 1.15rem 1rem; }
+.empty-ic { width: 2.6rem; height: 2.6rem; border-radius: 14px; font-size: 1.15rem; }
+.empty-txt b { font-size: 1rem; }
+.empty-txt p { font-size: .85rem; }
+@container (width > 30rem) {
+  .empty { flex-direction: row; text-align: left; gap: 1rem; padding: 1rem 1.15rem; }
+  .empty-txt { flex: 1; min-width: 0; }
+  .empty-txt p { margin-left: 0; max-width: none; }
+  .empty .btn { flex: none; }
+}
+#swal-form .input-pre > input[name] { padding-left: 1.65rem; }
+#swal-form .input-pre.suf > input[name] { padding-left: .75rem; padding-right: 1.9rem; }
+/* Botones de la ventana en celular: Cancelar y Atrás a su medida, el principal ocupa el resto */
+@media (width < 40rem) {
+  .swal-acciones { display: flex; flex-wrap: nowrap; }
+  .swal-acciones .btn { width: auto; white-space: nowrap; padding-left: .9rem; padding-right: .9rem; }
+  .swal-acciones .swal2-confirm { flex: 1 1 auto; }
+  .swal-acciones .swal2-cancel:only-child, .swal-acciones .swal2-cancel:last-child:first-child { flex: 1; }
+}
+.swal-acciones .btn { white-space: nowrap; }
+/* Cuadros vacíos compactos: ícono + texto en una fila; el botón debajo del texto (o a la derecha si hay espacio) */
+.empty { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; column-gap: .9rem; row-gap: .7rem;
+  text-align: left; padding: 1rem 1.1rem; }
+.empty-txt p { margin: .15rem 0 0; max-width: none; }
+.empty > .btn { grid-column: 2; justify-self: start; }
+@container (width > 25rem) {
+  .empty { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .empty > .btn { grid-column: 3; justify-self: end; }
+}

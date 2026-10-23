@@ -237,14 +237,16 @@ const puedeEditar = (t, row) => !row || esMio(row);   // en metas compartidas lo
 const num = (k, l, o = {}) => ({ k, l, t: 'number', ...o });
 const notas = { k: 'notas', l: 'Notas (opcional)', t: 'text' };
 const GRUPO = { k: 'grupo_id', l: 'Compartir con', t: 'grupo' };
+// Formularios a dos columnas: los campos cortos (montos, fechas, listas) van de dos en dos;
+// los textos, casillas, evidencias y repartos ocupan la fila completa (full: true / false lo fuerza)
 const ADJ = { k: '_adjuntos', l: 'Evidencia (foto del ticket, comprobante, PDF)', t: 'files' };
 const FORMS = {
   ingresos: { nuevo: 'Nuevo ingreso', fields: [
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
     { k: 'concepto', l: 'Concepto', t: 'text', req: 1, ph: 'Pago de la semana, venta, proyecto…' },
-    { k: 'fuente', l: 'Fuente', t: 'select', opts: FUENTES },
+    { k: 'fuente', l: 'Fuente', t: 'select', opts: FUENTES, full: true },
     num('monto', 'Monto', { req: 1 }), notas, ADJ],
-    pasos: [{ t: 'El ingreso', k: ['fecha', 'concepto', 'fuente', 'monto'] }, { t: 'Notas y evidencia', k: ['notas', '_adjuntos'] }] },
+    pasos: [{ t: null, k: ['concepto', 'monto', 'fecha', 'fuente', 'notas', '_adjuntos'] }] },
   gastos: { nuevo: 'Nuevo gasto', fields: [
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
     { k: 'concepto', l: 'Concepto', t: 'text', req: 1, ph: 'Tacos, Uber, súper, luz…' },
@@ -255,38 +257,36 @@ const FORMS = {
     { k: 'pagado_por', l: '¿Quién lo pagó?', t: 'pagador' },
     { k: 'participantes', l: 'Dividir en partes iguales entre', t: 'participantes' },
     notas, ADJ],
-    pasos: [{ t: '¿Qué gastaste?', k: ['fecha', 'concepto', 'categoria', 'metodo', 'monto'] },
+    pasos: [{ t: '¿Qué gastaste?', k: ['concepto', 'monto', 'fecha', 'categoria', 'metodo'] },
       { t: '¿Se comparte?', k: ['grupo_id', 'pagado_por', 'participantes'], soloConGrupos: true },
       { t: 'Notas y evidencia', k: ['notas', '_adjuntos'] }] },
   deudas: { nuevo: 'Nueva deuda', fields: [
     { k: 'acreedor', l: '¿Con quién?', t: 'text', req: 1, ph: 'Mercado Pago, Nu, Didi, Kueski, Coppel…' },
-    { k: 'tipo', l: 'Tipo', t: 'select', opts: TIPOS_DEUDA },
-    num('saldo', 'Saldo que debes hoy', { req: 1 }),
-    num('monto_original', 'Monto original (para ver tu avance)'),
+    { k: 'tipo', l: 'Tipo', t: 'select', opts: TIPOS_DEUDA, full: true },
+    num('saldo', 'Debes hoy', { req: 1 }),
+    num('monto_original', 'Monto original', { ph: 'Para ver tu avance' }),
     num('pago_minimo', 'Pago por periodo', { req: 1 }),
     { k: 'frecuencia', l: 'Cada cuándo pagas', t: 'select', opts: ['semanal', 'quincenal', 'mensual'], def: 'mensual' },
     { k: 'proximo_pago', l: 'Próxima fecha de pago', t: 'date', req: 1, def: today },
-    num('tasa_anual', 'Tasa anual o CAT (%)', { step: '0.1', max: 5000, ph: 'Viene en tu contrato o en la app' }),
+    num('tasa_anual', 'Tasa anual o CAT', { step: '0.1', max: 5000, ph: 'En tu contrato', suf: '%' }),
     notas, { ...ADJ, l: 'Contrato o estado de cuenta (opcional)' }],
-    pasos: [{ t: '¿A quién le debes?', k: ['acreedor', 'tipo', 'saldo', 'monto_original'] },
-      { t: '¿Cómo la pagas?', k: ['pago_minimo', 'frecuencia', 'proximo_pago', 'tasa_anual'] },
-      { t: 'Documentos', k: ['notas', '_adjuntos'] }] },
+    pasos: [{ t: '¿A quién le debes?', k: ['acreedor', 'saldo', 'monto_original', 'tipo'] },
+      { t: '¿Cómo la pagas?', k: ['pago_minimo', 'frecuencia', 'proximo_pago', 'tasa_anual', 'notas', '_adjuntos'] }] },
   recurrentes: { nuevo: 'Nuevo gasto fijo', fields: [
     { k: 'nombre', l: 'Nombre', t: 'text', req: 1, ph: 'Renta, internet, Netflix, gimnasio, plan de celular…' },
     num('monto', 'Monto total', { req: 1 }),
     { k: 'frecuencia', l: 'Cada cuándo se cobra', t: 'select', opts: FRECUENCIAS, def: 'mensual' },
     { k: 'proximo_cobro', l: 'Próximo cobro', t: 'date', req: 1, def: today },
     { k: 'categoria', l: 'Categoría', t: 'select', opts: CATEGORIAS, def: 'Suscripciones' },
-    { ...GRUPO, l: 'Compartir con (se divide entre todos)' },
-    { k: 'en_uso', l: 'Sí lo uso / sí lo necesito', t: 'check', def: true }, notas],
-    pasos: [{ t: '¿Qué pagas?', k: ['nombre', 'monto', 'frecuencia', 'proximo_cobro'] },
-      { t: 'Detalles', k: ['categoria', 'grupo_id', 'en_uso', 'notas'] }] },
+    { ...GRUPO, l: 'Compartir con', hint: 'Se divide entre todos' },
+    { k: 'en_uso', l: 'Sí lo uso', t: 'check', def: true, full: false }, notas],
+    pasos: [{ t: null, k: ['nombre', 'monto', 'frecuencia', 'proximo_cobro', 'categoria', 'grupo_id', 'en_uso', 'notas'] }] },
   metas: { nuevo: 'Nueva meta', fields: [
     { k: 'nombre', l: 'Meta', t: 'text', req: 1, ph: 'Fondo de emergencia, moto, viaje, sala del depa…' },
     num('objetivo', '¿Cuánto necesitas?', { req: 1 }),
     num('ahorrado', '¿Cuánto llevas?', { def: 0 }),
     { k: 'fecha_limite', l: '¿Para cuándo?', t: 'date' },
-    { ...GRUPO, l: 'Meta compartida con' }, notas] },
+    { ...GRUPO, l: 'Compartida con' }, notas] },
   presupuestos: { nuevo: 'Nuevo presupuesto', fields: [
     { k: 'categoria', l: 'Categoría', t: 'select', opts: CATEGORIAS },
     num('limite_mensual', 'Límite al mes', { req: 1 })] },
@@ -297,7 +297,7 @@ const FORMS = {
     { k: 'tipo', l: 'Tipo', t: 'select', opts: ['Recordatorio', 'Pago', 'Cobro', 'Otro'] },
     num('monto', 'Monto (opcional)'),
     { k: 'repetir', l: 'Se repite', t: 'select', opts: REPETIR },
-    { ...GRUPO, l: 'Mostrar también en el calendario de' }, notas, ADJ],
+    { ...GRUPO, l: 'Compartir con' }, notas, ADJ],
     pasos: [{ t: '¿Qué y cuándo?', k: ['titulo', 'fecha', 'hora', 'tipo', 'monto'] },
       { t: 'Repetir y compartir', k: ['repetir', 'grupo_id', 'notas', '_adjuntos'] }] },
   liquidaciones: { nuevo: 'Pago entre compañeros', fields: [
@@ -306,7 +306,7 @@ const FORMS = {
     num('monto', 'Monto', { req: 1 }),
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
     notas, { ...ADJ, l: 'Comprobante de transferencia (opcional)' }],
-    pasos: [{ t: 'El pago', k: ['de', 'para', 'monto', 'fecha'] }, { t: 'Comprobante', k: ['notas', '_adjuntos'] }] },
+    pasos: [{ t: null, k: ['de', 'para', 'monto', 'fecha', 'notas', '_adjuntos'] }] },
   abono: { nuevo: 'Registrar abono', fields: [
     num('monto', 'Monto del abono', { req: 1 }),
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
@@ -346,7 +346,14 @@ async function confirmar({ titulo, texto = '', ok = 'Sí, continuar', peligro = 
 /* ---------- Formularios (con wizard por pasos cuando son largos) ---------- */
 let ctx = null;
 const fm = () => document.getElementById('swal-form');
-function campo(f, v) {
+// ¿El campo ocupa toda la fila? Textos, casillas, evidencias y repartos sí; montos, fechas y listas van de dos en dos
+const esFull = f => f.full ?? ['text', 'check', 'files', 'participantes'].includes(f.t);
+// Agrega la clase de ancho a la primera etiqueta del campo (sin envolverlo, para no dejar huecos en la cuadrícula)
+const conAncho = (html, f) => !esFull(f) ? html : html.replace(/^<(\w+)([^>]*)>/, (m, tag, attrs) =>
+  /\sclass="/.test(attrs) ? `<${tag}${attrs.replace(/\sclass="([^"]*)"/, ' class="$1 span-2"')}>` : `<${tag} class="span-2"${attrs}>`);
+const ayuda = f => f.hint ? `<small class="hint">${f.hint}</small>` : '';
+function campo(f, v) { return f.t === 'grupo' && !misGrupos().length ? campoBase(f, v) : conAncho(campoBase(f, v), f); }
+function campoBase(f, v) {
   const req = f.req ? 'required' : '';
   switch (f.t) {
     case 'select': {
@@ -357,18 +364,21 @@ function campo(f, v) {
     case 'grupo': {
       const gs = misGrupos();
       if (!gs.length) return `<input type="hidden" name="grupo_id" value="${esc(v || '')}">`;
-      return `<label>${f.l}<select name="grupo_id" data-grupo><option value="">Solo yo (privado)</option>${gs.map(g => `<option value="${g.id}" ${g.id === v ? 'selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select></label>`;
+      return `<label>${f.l}<select name="grupo_id" data-grupo><option value="">Solo yo (privado)</option>${gs.map(g => `<option value="${g.id}" ${g.id === v ? 'selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select>${ayuda(f)}</label>`;
     }
     case 'pagador': return `<label data-solo-grupo>${f.l}<select name="pagado_por" data-v="${esc(v || ME)}"></select></label>`;
     case 'participantes': return `<fieldset data-solo-grupo class="chips-field" data-v="${esc(JSON.stringify(v || []))}"><legend>${f.l}</legend><div class="chips"></div><small class="muted" data-parte></small></fieldset>`;
     case 'miembro': return `<label>${f.l}<select name="${f.k}" data-miembro data-v="${esc(v || '')}" required></select></label>`;
     case 'files': return `<div class="adj-field"><span class="lbl">${f.l}</span><div class="thumbs" id="adj-exist"></div><div class="thumbs" id="adj-nuevos"></div>
-      <label class="btn ghost small file-btn"><i class="bi bi-camera" aria-hidden="true"></i>Tomar foto o elegir archivo<input type="file" name="_adjuntos" multiple accept="image/*,application/pdf" hidden></label></div>`;
+      <label class="file-btn"><i class="bi bi-camera" aria-hidden="true"></i><span><b>Tomar foto o elegir archivo</b><small>Imagen o PDF, se comprime sola</small></span><input type="file" name="_adjuntos" multiple accept="image/*,application/pdf" hidden></label></div>`;
     default: {
       const extra = f.t === 'number' ? `step="${f.step || '0.01'}" min="0" ${f.max ? `max="${f.max}"` : ''} inputmode="decimal"` : '';
       const val = f.t === 'time' && v ? String(v).slice(0, 5) : v;
       const largo = f.t === 'text' ? `maxlength="${f.k === 'notas' ? 1000 : 120}" autocapitalize="sentences"` : '';
-      return `<label>${f.l}<input type="${f.t}" name="${f.k}" value="${esc(val ?? '')}" ${req} ${extra} ${largo} enterkeyhint="next" placeholder="${esc(f.ph || '')}"></label>`;
+      const input = `<input type="${f.t}" name="${f.k}" value="${esc(val ?? '')}" ${req} ${extra} ${largo} enterkeyhint="next" placeholder="${esc(f.ph || '')}">`;
+      // Montos con "$" al inicio; porcentajes con "%" al final
+      if (f.t === 'number') return `<label>${f.l}<span class="input-pre ${f.suf ? 'suf' : ''}"><b aria-hidden="true">${f.suf || '$'}</b>${input}</span>${ayuda(f)}</label>`;
+      return `<label>${f.l}${input}${ayuda(f)}</label>`;
     }
   }
 }
@@ -377,6 +387,7 @@ function actualizarGrupoCampos(reset = false) {
   const form = fm(); if (!form) return;
   const gid = grupoDelForm(), ms = gid ? miembrosDe(gid) : [];
   form.querySelectorAll('[data-solo-grupo]').forEach(el => { el.hidden = !gid; });
+  if (form.querySelector('[data-solo-grupo]')) form.querySelector('select[data-grupo]')?.closest('label')?.classList.toggle('span-2', !gid);
   form.querySelectorAll('select[name=pagado_por], select[data-miembro]').forEach(sel => {
     let v = reset ? '' : (sel.value || sel.dataset.v || '');
     if (!ms.some(m => m.user_id === v)) v = sel.name === 'para' ? (ms.find(m => m.user_id !== ME)?.user_id || '') : ME;
@@ -452,10 +463,12 @@ function abrirForm(tipo, row = null, extra = {}) {
   ctx = c;
   const ro = !!row && !puedeEditar(tipo, row);
   const valor = f => (c.draft && f.k in c.draft) ? c.draft[f.k] : row ? row[f.k] : (c.pre[f.k] ?? (typeof f.def === 'function' ? f.def() : f.def));
-  const titulo = extra.titulo || (ro ? 'Detalle' : row ? def.nuevo.replace(/^(Nuev[oa]|Crear|Registrar) /, 'Editar ') : def.nuevo);
+  const nombreRow = row ? (row.concepto || row.nombre || row.titulo || '') : '';
+  const titulo = extra.titulo || (ro ? (nombreRow ? esc(nombreRow) : 'Detalle') : row ? def.nuevo.replace(/^(Nuev[oa]|Crear|Registrar) /, 'Editar ') : def.nuevo);
 
   // Pasos: todos los campos van en algún panel; los pasos que no aplican quedan ocultos
-  const definidos = (!ro && def.pasos) ? def.pasos : [{ t: null, k: def.fields.map(f => f.k) }];
+  // En modo detalle todo va en una vista, pero con el mismo orden de campos que el formulario
+  const definidos = def.pasos ? (ro ? [{ t: null, k: def.pasos.flatMap(p => p.k) }] : def.pasos) : [{ t: null, k: def.fields.map(f => f.k) }];
   const usados = new Set(definidos.flatMap(p => p.k));
   const sobrantes = def.fields.map(f => f.k).filter(k => !usados.has(k));
   const pasos = definidos.map((p, i) => ({ ...p, k: i === definidos.length - 1 ? [...p.k, ...sobrantes] : p.k,
@@ -464,7 +477,7 @@ function abrirForm(tipo, row = null, extra = {}) {
   const total = visibles.length;
   const campoHtml = k => { const f = def.fields.find(x => x.k === k); return f ? campo(f, valor(f)) : ''; };
   const stepper = total > 1 ? `<ol class="wizard-pasos" aria-label="Pasos">${visibles.map((i, n) => `<li data-paso="${n}"><span>${n + 1}</span><em>${esc(pasos[i].t)}</em></li>`).join('')}</ol>` : '';
-  const paneles = pasos.map((p, i) => `<section class="wizard-panel grid gap-3" data-panel="${i}" ${p.visible ? '' : 'hidden'}>${p.k.map(campoHtml).join('')}</section>`).join('');
+  const paneles = pasos.map((p, i) => `<section class="wizard-panel form-cols" data-panel="${i}" ${p.visible ? '' : 'hidden'}>${p.k.map(campoHtml).join('')}</section>`).join('');
   const nota = row && (row.grupo_id || !esMio(row)) ? `<p class="small muted nota-grupo"><i class="bi bi-info-circle" aria-hidden="true"></i> Registrado por ${esc(aliasDe(row.user_id, row.grupo_id))}${row.grupo_id ? ` · compartido en ${esc(nombreGrupo(row.grupo_id))}` : ''}${tipo === 'gastos' && row.grupo_id ? ` · tu parte: <b>${money(miParte(row))}</b>` : ''}.${ro ? ' Solo esa persona puede modificarlo.' : ''}</p>` : '';
   const borrar = row && !ro && esMio(row) && !def.sinBorrar ? `<button type="button" class="link-btn text-bad justify-self-start no-underline" data-act="eliminar-registro"><i class="bi bi-trash3" aria-hidden="true"></i> Eliminar este registro</button>` : '';
   const html = `<form id="swal-form" class="grid gap-3 text-left" novalidate>${stepper}${paneles}${nota}${borrar}</form>`;
@@ -499,7 +512,7 @@ function abrirForm(tipo, row = null, extra = {}) {
   };
 
   return SWAL.fire({
-    title: titulo, html, width: 560,
+    title: titulo, html, width: 600,
     showConfirmButton: !ro, showDenyButton: total > 1, denyButtonText: '<i class="bi bi-arrow-left" aria-hidden="true"></i> Atrás',
     showCancelButton: true, cancelButtonText: ro ? 'Cerrar' : 'Cancelar',
     focusConfirm: false, allowEnterKey: false,
@@ -508,7 +521,12 @@ function abrirForm(tipo, row = null, extra = {}) {
       const form = fm();
       actualizarGrupoCampos();
       const ex = form.querySelector('#adj-exist'); if (ex && row) pintarAdjuntos(ex, adjuntosDe(tipo, row.id), !ro);
-      if (ro) { form.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = true; }); form.querySelector('.file-btn')?.setAttribute('hidden', ''); }
+      if (ro) {
+        form.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = true; });
+        form.querySelector('.file-btn')?.setAttribute('hidden', '');
+        if (!adjuntosDe(tipo, row.id).length) form.querySelector('.adj-field')?.remove();   // sin evidencias: no mostrar el apartado vacío
+        form.querySelectorAll('input[name=notas]').forEach(n => { if (!n.value) n.closest('label')?.remove(); });
+      }
       form.addEventListener('submit', e => { e.preventDefault(); if (!ro) Swal.clickConfirm(); });
       // Enter / "Siguiente" del teclado: pasa al siguiente campo; en el último, avanza o guarda
       form.addEventListener('keydown', e => {
