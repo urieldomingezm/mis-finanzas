@@ -510,3 +510,14 @@
 #login:not([hidden]) .login-card.sacudir { animation: sacudir .45s cubic-bezier(.36, .07, .19, .97) both; }
 #login:not([hidden]) .login-card.exito { animation: login-sale .55s .2s cubic-bezier(.4, 0, .2, 1) forwards; }
 .btn-estado.exito:disabled, .btn-estado.cargando:disabled { opacity: 1; }
+
+/* Login en dos columnas: campos y botones lado a lado */
+.login-card { max-width: 24rem; }
+.login-campos { display: grid; gap: .75rem; align-items: start; }
+.login-botones { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
+.login-botones .btn { padding-left: .5rem; padding-right: .5rem; white-space: nowrap; min-width: 0; }
+.login-botones .btn-txt { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (width >= 30rem) {
+  .login-card { max-width: 36rem; }
+  .login-campos { grid-template-columns: 1fr 1fr; }
+}

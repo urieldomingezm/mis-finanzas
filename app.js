@@ -1890,7 +1890,7 @@ async function enviarLogin(modo = 'login') {
   if (!validarLogin(modo)) return;
   const email = lf.elements.email.value.trim(), password = lf.elements.password.value;
   const btn = modo === 'signup' ? $('#btn-crear') : modo === 'reset' ? null : $('#btn-entrar');
-  estadoBoton(btn, 'cargando', { login: 'Entrando…', signup: 'Creando cuenta…' }[modo]);
+  estadoBoton(btn, 'cargando', { login: 'Entrando…', signup: 'Creando…' }[modo]);
   if (modo === 'reset') $('#btn-reset').textContent = 'Enviando…';
   bloquearForm(true);
   loginEnCurso = modo !== 'reset';

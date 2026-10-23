@@ -44,6 +44,7 @@
 
       <div id="login-alerta" class="alerta" role="alert" aria-live="assertive" hidden></div>
 
+      <div class="login-campos">
       <div class="campo" data-campo="email">
         <label for="login-email">Correo</label>
         <div class="input-ic">
@@ -65,9 +66,12 @@
         <small class="campo-error" id="err-pass"></small>
         <small class="campo-aviso" id="aviso-mayus" hidden><i class="bi bi-capslock-fill" aria-hidden="true"></i> Mayúsculas activadas</small>
       </div>
+      </div>
 
+      <div class="login-botones">
       <button class="btn primary btn-estado" data-modo="login" id="btn-entrar"><span class="btn-txt"><i class="bi bi-box-arrow-in-right"></i>Entrar</span></button>
       <button class="btn ghost btn-estado" data-modo="signup" id="btn-crear"><span class="btn-txt"><i class="bi bi-person-plus"></i>Crear cuenta</span></button>
+      </div>
       <button type="submit" class="link-btn" id="btn-reset" data-modo="reset" formnovalidate>Olvidé mi contraseña</button>
       <a data-apk hidden class="btn ghost small mt-1" download><i class="bi bi-android2"></i>Descargar app para Android</a>
     </form>
