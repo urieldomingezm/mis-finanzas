@@ -10,8 +10,9 @@ for (const a of ARCHIVOS) await cp(a, `dist/${a}`, { recursive: true });
 
 // Versión visible dentro de la app (útil para saber qué APK tienes instalada)
 const pkg = JSON.parse(await readFile('package.json', 'utf8'));
-const version = process.env.GITHUB_RUN_NUMBER ? `${pkg.version.replace(/\.\d+$/, '')}.${process.env.GITHUB_RUN_NUMBER}` : pkg.version;
-const html = (await readFile('dist/index.html', 'utf8')).replace('<meta charset="utf-8">', `<meta charset="utf-8">\n  <meta name="app-version" content="${version}">`);
+const version = pkg.version, build = process.env.GITHUB_RUN_NUMBER || '';
+const html = (await readFile('dist/index.html', 'utf8')).replace('<meta charset="utf-8">',
+  `<meta charset="utf-8">\n  <meta name="app-version" content="${version}">${build ? `\n  <meta name="app-build" content="${build}">` : ''}`);
 await writeFile('dist/index.html', html);
 
-console.log(`dist/ lista (versión ${version})`);
+console.log(`dist/ lista (versión ${version}${build ? ', compilación ' + build : ''})`);

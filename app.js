@@ -20,6 +20,13 @@ const NATIVO = !!window.Capacitor?.isNativePlatform?.();
 const PLUG = window.Capacitor?.Plugins || {};
 const SITIO = CFG.SITE_URL || (location.origin + location.pathname);          // la web pública (para correos e invitaciones)
 const APK_URL = CFG.APK_URL || '';
+// Versión que se muestra abajo del login y de cada sección
+let VERSION_APP = document.querySelector('meta[name="app-version"]')?.content || '';
+const BUILD_APP = document.querySelector('meta[name="app-build"]')?.content || '';
+const textoVersion = () => VERSION_APP ? `Mis Finanzas v${VERSION_APP}${BUILD_APP ? ` (compilación ${BUILD_APP})` : ''} · ${NATIVO ? 'App Android' : 'Web'}` : '';
+const pintarVersion = () => document.querySelectorAll('[data-version]').forEach(el => { el.textContent = textoVersion(); });
+if (!VERSION_APP) fetch('package.json', { cache: 'no-store' }).then(r => (r.ok ? r.json() : null))
+  .then(j => { if (j?.version) { VERSION_APP = j.version; pintarVersion(); } }).catch(() => {});
 // Abre enlaces externos: en la app, en el navegador del sistema; en la web, en otra pestaña
 function abrirExterno(url) {
   if (NATIVO && PLUG.Browser) return PLUG.Browser.open({ url });
@@ -829,9 +836,16 @@ function serie(tipo) {
 let tab = 'resumen', vistaSerie = 'semanas', movTipo = 'gastos', movMes = today().slice(0, 7), grupoSel = null;
 let agY = new Date().getFullYear(), agM = new Date().getMonth(), agSel = null;
 
-const vacio = (txt, tipo, pre) => `<div class="empty">${txt}${tipo ? `<br><br><button class="btn primary small" data-act="nuevo" data-t="${tipo}"${pre ? ` data-g="${pre}"` : ''}><i class="bi bi-plus-lg" aria-hidden="true"></i>Agregar</button>` : ''}</div>`;
+const ICONO_VACIO = { gastos: 'receipt', ingresos: 'cash-coin', deudas: 'credit-card-2-front', recurrentes: 'arrow-repeat', metas: 'bullseye', eventos: 'calendar-event', presupuestos: 'wallet2' };
+const BOTON_VACIO = { gastos: 'Agregar gasto', ingresos: 'Agregar ingreso', deudas: 'Agregar deuda', recurrentes: 'Agregar gasto fijo', metas: 'Crear meta', eventos: 'Agregar evento', presupuestos: 'Poner presupuesto' };
+// Cuadro vacío: ícono, título, explicación y (si aplica) botón para empezar
+const vacio = (txt, tipo, pre, icono, titulo, tono = '') => `<div class="empty ${tono}">
+  <span class="empty-ic"><i class="bi bi-${icono || ICONO_VACIO[tipo] || 'inbox'}" aria-hidden="true"></i></span>
+  <div class="empty-txt">${titulo ? `<b>${titulo}</b>` : ''}<p>${txt}</p></div>
+  ${tipo ? `<button class="btn primary small" data-act="nuevo" data-t="${tipo}"${pre ? ` data-g="${pre}"` : ''}><i class="bi bi-plus-lg" aria-hidden="true"></i>${BOTON_VACIO[tipo] || 'Agregar'}</button>` : ''}</div>`;
 const etiquetaGrupo = gid => gid ? ` <span class="badge grupo"><i class="bi bi-people-fill" aria-hidden="true"></i>${esc(nombreGrupo(gid))}</span>` : '';
 
+let heroPeriodo = 'mes';
 function vResumen() {
   const hoy = new Date(), sw = startOfWeek(hoy), ew = addDays(sw, 7), sm = mesIni(), em = mesIni(hoy, 1);
   const iw = sum(S.ingresos.filter(enRango(sw, ew))), gw = sum(S.gastos.filter(enRango(sw, ew)));
@@ -842,52 +856,78 @@ function vResumen() {
   const fugas = detectarFugas(), prox = proximos(14);
   const potencial = fugas.reduce((s, x) => s + (x.ahorro || 0), 0);
   const gs = misGrupos(), saldoGrupos = gs.reduce((s, g) => s + (balances(g.id)[ME] || 0), 0);
+  const ser = serie(vistaSerie), hayserie = ser.ing.some(Boolean) || ser.gas.some(Boolean);
 
-  const periodo = (titulo, i, g) => `
-    <div class="card periodo"><h3>${titulo}</h3>
-      <div class="fila"><span>Ingresos</span><b class="pos" data-num="${i}">${money(i)}</b></div>
-      <div class="fila"><span>Gastos (tu parte)</span><b class="neg" data-num="${g}">${money(g)}</b></div>
-      <div class="fila neto"><span>Te queda</span><span class="${i - g >= 0 ? 'pos' : 'neg'}" data-num="${i - g}">${money(i - g)}</span></div>
+  // Bloque principal: lo que te queda
+  const sem = heroPeriodo === 'semana';
+  const per = sem ? { i: iw, g: gw, txt: 'esta semana', rango: `${fCorta(sw)} – ${fCorta(addDays(sw, 6))}` }
+                  : { i: im, g: gm, txt: `en ${MESES[hoy.getMonth()]}`, rango: `1 – ${new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate()} ${MESES[hoy.getMonth()].slice(0, 3)}` };
+  const queda = per.i - per.g, uso = per.i > 0 ? Math.min(100, (per.g / per.i) * 100) : (per.g > 0 ? 100 : 0);
+  const usoTxt = per.i > 0 ? (queda >= 0 ? `Llevas gastado el ${Math.round((per.g / per.i) * 100)}% de lo que ganaste` : `Gastaste ${money(-queda)} más de lo que ganaste`)
+    : per.g > 0 ? 'Aún no registras ingresos en este periodo' : 'Registra lo que ganas y lo que gastas para ver tu balance';
+  const hero = `
+    <section class="hero" id="t-periodos" aria-label="Balance ${per.txt}">
+      <svg class="hero-trazo" viewBox="0 0 320 120" preserveAspectRatio="none" aria-hidden="true"><path d="M0 104 L96 64 L148 82 L236 30 L320 6"/></svg>
+      <div class="hero-top">
+        <div class="seg seg-hero" role="group" aria-label="Periodo">
+          <button data-act="periodo" data-v="semana" class="${sem ? 'on' : ''}" aria-pressed="${sem}">Semana</button>
+          <button data-act="periodo" data-v="mes" class="${sem ? '' : 'on'}" aria-pressed="${!sem}">Mes</button>
+        </div>
+        <span class="hero-rango">${per.rango}</span>
+      </div>
+      <p class="hero-label">${queda >= 0 ? 'Te queda' : 'Te pasaste'} ${per.txt}</p>
+      <p class="hero-monto ${queda < 0 ? 'rojo' : ''}" data-num="${Math.abs(queda)}">${money(Math.abs(queda))}</p>
+      <div class="hero-barra ${queda < 0 ? 'rojo' : ''}" role="img" aria-label="${usoTxt}"><i style="width:${uso}%"></i></div>
+      <p class="hero-uso">${usoTxt}</p>
+      <div class="hero-filas">
+        <div><span><i class="bi bi-arrow-down-circle" aria-hidden="true"></i> Ingresos</span><b data-num="${per.i}">${money(per.i)}</b></div>
+        <div><span><i class="bi bi-arrow-up-circle" aria-hidden="true"></i> Gastos (tu parte)</span><b data-num="${per.g}">${money(per.g)}</b></div>
+      </div>
+    </section>`;
+
+  const stat = (ic, lbl, val, sub, cls = '', extra = '') => `<div class="stat ${extra ? 'clickable' : ''}" ${extra}><span><i class="bi bi-${ic}" aria-hidden="true"></i>${lbl}</span><b class="${cls}">${val}</b><small>${sub}</small></div>`;
+  const stats = `
+    <div class="stats" id="t-kpis">
+      ${stat('credit-card-2-front', 'Deuda total', `<span data-num="${deuda}">${money(deuda)}</span>`, `${S.deudas.filter(d => d.saldo > 0).length} activas`, deuda > 0 ? 'neg' : '', 'data-act="tab" data-v="deudas"')}
+      ${stat('arrow-repeat', 'Gastos fijos al mes', `<span data-num="${fijos}">${money(fijos)}</span>`, `${money(fijos * 12)} al año`, '', 'data-act="tab" data-v="fijos"')}
+      ${gs.length ? stat('people', 'Con tus roomies', `${saldoGrupos >= 0 ? 'Te deben ' : 'Debes '}${money(Math.abs(saldoGrupos))}`, `${gs.length} grupo${gs.length > 1 ? 's' : ''}`, saldoGrupos >= 0 ? 'pos' : 'neg', 'data-act="tab" data-v="grupo"')
+        : stat('piggy-bank', 'Ahorrado en metas', money(ahorrado), `${S.metas.length} meta${S.metas.length === 1 ? '' : 's'}`, 'pos', 'data-act="tab" data-v="metas"')}
+      ${stat('graph-up-arrow', 'Ahorro del mes', `${im > 0 ? pct(im - gm, im) : 0}%`, 'Lo sano: 10–20% o más')}
     </div>`;
 
   return `
-  <div class="grid grid-cols-1 gap-3 md:grid-cols-2" id="t-periodos">
-    ${periodo(`Esta semana · ${fCorta(sw)} – ${fCorta(addDays(sw, 6))}`, iw, gw)}
-    ${periodo(`Este mes · ${MESES[hoy.getMonth()]}`, im, gm)}
-  </div>
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4 section" id="t-kpis">
-    <div class="card kpi"><span>Deuda total</span><b class="${deuda > 0 ? 'neg' : ''}" data-num="${deuda}">${money(deuda)}</b><small>${S.deudas.filter(d => d.saldo > 0).length} activas</small></div>
-    <div class="card kpi"><span>Gastos fijos / mes</span><b data-num="${fijos}">${money(fijos)}</b><small>${money(fijos * 12)} al año</small></div>
-    ${gs.length ? `<div class="card kpi clickable" data-act="tab" data-v="grupo"><span>Con tus roomies</span><b class="${saldoGrupos >= 0 ? 'pos' : 'neg'}">${saldoGrupos >= 0 ? 'Te deben ' : 'Debes '}${money(Math.abs(saldoGrupos))}</b><small>${gs.length} grupo${gs.length > 1 ? 's' : ''}</small></div>`
-      : `<div class="card kpi"><span>Ahorrado en metas</span><b class="pos">${money(ahorrado)}</b><small>${S.metas.length} metas</small></div>`}
-    <div class="card kpi"><span>Tasa de ahorro del mes</span><b>${im > 0 ? pct(im - gm, im) : 0}%</b><small>Ideal: 10–20% o más</small></div>
-  </div>
-
-  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">
-    <div class="card" id="t-grafica">
-      <div class="section-head"><h2>Ingresos vs gastos</h2>
+  <div class="inicio">
+    ${hero}
+    ${stats}
+    <div class="card zona-grafica" id="t-grafica">
+      <div class="section-head"><h2>Ingresos contra gastos</h2>
         <div class="seg"><button data-act="serie" data-v="semanas" class="${vistaSerie === 'semanas' ? 'on' : ''}">Semanas</button><button data-act="serie" data-v="meses" class="${vistaSerie === 'meses' ? 'on' : ''}">Meses</button></div>
       </div>
-      <div class="chart-box"><canvas id="ch-serie"></canvas></div>
+      ${hayserie ? '<div class="chart-box"><canvas id="ch-serie"></canvas></div>'
+        : vacio('Cuando registres ingresos y gastos verás aquí cómo cambian semana a semana.', null, null, 'bar-chart-line', 'Todavía no hay movimientos')}
     </div>
-    <div class="card">
-      <div class="section-head"><h2>¿En qué se va? (${MESES[hoy.getMonth()]})</h2></div>
-      <div class="chart-box">${gm > 0 ? '<canvas id="ch-cat"></canvas>' : '<div class="empty">Sin gastos este mes</div>'}</div>
+
+    <div class="zona-proximos" id="t-proximos">
+      <div class="section-head"><h2>Próximos 14 días</h2>${prox.length ? `<span class="badge">${money(sum(prox.filter(p => !p.info)))} por pagar</span>` : ''}</div>
+      <div class="list">${prox.length ? prox.map(p => itemEvento(p, p.fecha)).join('')
+        : vacio('Agrega tus deudas, gastos fijos o eventos y aquí verás qué te toca pagar.', 'eventos', null, 'calendar-check', 'Nada por pagar en 14 días')}</div>
     </div>
-  </div>
 
-  <div class="section" id="t-fugas">
-    <div class="section-head"><h2>Fugas detectadas</h2>${potencial > 0 ? `<span class="badge ok">Podrías liberar ≈ ${money(potencial)}/mes</span>` : ''}</div>
-    <div class="list">${fugas.length ? fugas.map(x => `
-      <div class="fuga ${x.nivel}"><div><b>${esc(x.titulo)}</b><p>${esc(x.detalle)}</p></div>
-      ${x.ahorro ? `<div class="ahorro">ahorro posible<strong>${money(x.ahorro)}</strong>al mes</div>` : ''}</div>`).join('')
-      : vacio('No hay fugas detectadas. Entre más registres, mejor te puedo avisar.')}</div>
-  </div>
+    <div class="zona-fugas" id="t-fugas">
+      <div class="section-head"><h2>Fugas de dinero</h2>${potencial > 0 ? `<span class="badge ok">Podrías liberar ${money(potencial)} al mes</span>` : ''}</div>
+      <div class="list">${fugas.length ? fugas.map(x => `
+        <div class="fuga ${x.nivel}">
+          <span class="fuga-ic"><i class="bi bi-${x.nivel === 'alta' ? 'exclamation-triangle-fill' : x.nivel === 'media' ? 'exclamation-circle-fill' : 'info-circle-fill'}" aria-hidden="true"></i></span>
+          <div class="min-w-0 flex-1"><b>${esc(x.titulo)}</b><p>${esc(x.detalle)}</p></div>
+          ${x.ahorro ? `<div class="ahorro"><strong>${money(x.ahorro)}</strong><span>al mes</span></div>` : ''}</div>`).join('')
+        : vacio('Entre más registres, mejor te aviso dónde se te escapa el dinero.', null, null, 'shield-check', 'Sin fugas detectadas', 'ok')}</div>
+    </div>
 
-  <div class="section" id="t-proximos">
-    <div class="section-head"><h2>Próximos 14 días</h2><span class="muted small">${money(sum(prox.filter(p => !p.info)))} por pagar</span></div>
-    <div class="list">${prox.length ? prox.map(p => itemEvento(p, p.fecha)).join('')
-      : vacio('Nada programado. Agrega deudas, gastos fijos o eventos para verlos aquí.')}</div>
+    <div class="card zona-dona">
+      <div class="section-head"><h2>¿En qué se va? <span class="muted font-normal">${MESES[hoy.getMonth()]}</span></h2></div>
+      ${gm > 0 ? '<div class="chart-box"><canvas id="ch-cat"></canvas></div>'
+        : vacio('Cuando registres gastos verás en qué categorías se va tu dinero.', 'gastos', null, 'pie-chart', 'Sin gastos este mes')}
+    </div>
   </div>`;
 }
 function dibujarResumen() {
@@ -906,7 +946,7 @@ function dibujarResumen() {
   if (resto > 0) top.push(['Otras', resto]);
   const colores = ['--c1', '--c2', '--c3', '--c4', '--c5', '--c6'].map(css);
   dibujar('ch-cat', { type: 'doughnut', data: { labels: top.map(x => x[0]), datasets: [{ data: top.map(x => x[1]), backgroundColor: colores, borderColor: css('--surface'), borderWidth: 2 }] },
-    options: { maintainAspectRatio: false, cutout: '62%', plugins: { legend: { position: 'right', labels: { boxWidth: 10 } },
+    options: { maintainAspectRatio: false, cutout: '64%', plugins: { legend: { position: innerWidth < 520 ? 'bottom' : 'right', labels: { boxWidth: 10, boxHeight: 10, padding: 12 } },
       tooltip: { callbacks: { label: c => `${c.label}: ${money(c.raw)}` } } } } });
 }
 
@@ -930,7 +970,7 @@ function vMovimientos() {
       <button class="item" data-act="edit" data-t="${movTipo}" data-id="${r.id}">
         <div class="main"><b>${esc(r.concepto)}</b><small>${fLarga(r.fecha)} · ${det(r)}${clip(movTipo, r.id)}</small></div>
         <span class="amt ${movTipo === 'gastos' ? 'neg' : 'pos'}">${movTipo === 'gastos' ? '−' : '+'}${money(r.monto)}</span></button>`).join('')}</div></div>`).join('')
-    : `<div class="section">${vacio(`No hay ${movTipo} en este mes.`, movTipo)}</div>`}`;
+    : `<div class="section">${vacio(movTipo === 'gastos' ? 'Registra lo que gastas, aunque sean $20: así encuentro tus fugas.' : 'Registra lo que te pagan para saber cuánto te queda.', movTipo, null, null, `Sin ${movTipo} en ${MESES[Number(movMes.slice(5)) - 1]}`)}</div>`}`;
 }
 
 function vDeudas() {
@@ -959,14 +999,14 @@ function vDeudas() {
     </div>`;
   };
   return `
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" id="t-deudas-kpis">
-    <div class="card kpi"><span>Debes en total</span><b class="neg">${money(total)}</b></div>
-    <div class="card kpi"><span>Pagos al mes</span><b>${money(pagoMes)}</b></div>
-    <div class="card kpi"><span>Intereses al mes ≈</span><b class="neg">${money(intMes)}</b><small>dinero que se va sin bajar la deuda</small></div>
-    <div class="card kpi"><span>Deudas activas</span><b>${act.length}</b></div>
+  <div class="stats" id="t-deudas-kpis">
+    <div class="stat"><span>Debes en total</span><b class="neg">${money(total)}</b></div>
+    <div class="stat"><span>Pagos al mes</span><b>${money(pagoMes)}</b></div>
+    <div class="stat"><span>Intereses al mes ≈</span><b class="neg">${money(intMes)}</b><small>dinero que se va sin bajar la deuda</small></div>
+    <div class="stat"><span>Deudas activas</span><b>${act.length}</b></div>
   </div>
   ${act.length > 1 ? `<p class="muted small section">Estrategia <b>avalancha</b>: paga el mínimo en todas y todo lo extra a la de tasa más alta (están ordenadas así). Es la forma de pagar menos intereses.</p>` : ''}
-  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">${act.map(card).join('') || vacio('Sin deudas registradas. Agrega las de apps, tarjetas o tiendas. Tus deudas siempre son privadas.', 'deudas')}</div>
+  <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">${act.map(card).join('') || vacio('Agrega las de apps de préstamo, tarjetas o tiendas para ver cuánto pagas de intereses. Siempre son privadas.', 'deudas', null, null, 'Sin deudas registradas', 'ok')}</div>
   ${pagadas.length ? `<div class="section"><h2 class="section-head"><i class="bi bi-trophy text-ok" aria-hidden="true"></i> Liquidadas</h2><div class="grid grid-cols-1 gap-3 md:grid-cols-2">${pagadas.map(card).join('')}</div></div>` : ''}`;
 }
 
@@ -975,11 +1015,11 @@ function vFijos() {
   const total = rows.reduce((s, r) => s + mensualEq(r.monto, r.frecuencia), 0);
   const sinUso = rows.filter(r => r.en_uso === false).reduce((s, r) => s + mensualEq(r.monto, r.frecuencia), 0);
   return `
-  <div class="grid grid-cols-2 gap-3 lg:grid-cols-4" id="t-fijos-kpis">
-    <div class="card kpi"><span>Fijos al mes (tu parte)</span><b>${money(total)}</b></div>
-    <div class="card kpi"><span>Al año</span><b>${money(total * 12)}</b></div>
-    <div class="card kpi"><span>Pagas sin usar</span><b class="${sinUso ? 'neg' : ''}">${money(sinUso)}</b><small>al mes</small></div>
-    <div class="card kpi"><span>Cargos</span><b>${rows.length}</b></div>
+  <div class="stats" id="t-fijos-kpis">
+    <div class="stat"><span>Fijos al mes (tu parte)</span><b>${money(total)}</b></div>
+    <div class="stat"><span>Al año</span><b>${money(total * 12)}</b></div>
+    <div class="stat"><span>Pagas sin usar</span><b class="${sinUso ? 'neg' : ''}">${money(sinUso)}</b><small>al mes</small></div>
+    <div class="stat"><span>Cargos</span><b>${rows.length}</b></div>
   </div>
   <p class="muted small section">Marca “no lo uso” en lo que pagas por costumbre; aparecerá como fuga en tu resumen. Si compartes renta o internet, elige el grupo y se divide solo.</p>
   <div class="list">${rows.map(r => {
@@ -988,7 +1028,7 @@ function vFijos() {
       <div class="main"><b>${esc(r.nombre)}${etiquetaGrupo(r.grupo_id)}</b><small>${money(r.total)} ${esc(r.frecuencia)}${r.grupo_id ? ` · tu parte ${money(r.monto)}` : ''} · próximo ${prox ? fCorta(prox) : '—'}</small></div>
       ${esMio(r) ? `<button class="badge ${r.en_uso === false ? 'bad' : 'ok'}" style="border:0;cursor:pointer" data-act="uso" data-id="${r.id}">${r.en_uso === false ? 'No lo uso' : 'Lo uso'}</button>` : ''}
       <span class="amt">${money(mensualEq(r.monto, r.frecuencia))}<small class="muted">/mes</small></span></div>`;
-  }).join('') || vacio('Agrega renta, servicios, plan de celular, streaming, gimnasio…', 'recurrentes')}</div>`;
+  }).join('') || vacio('Renta, luz, plan de celular, streaming, gimnasio… lo que pagas cada mes.', 'recurrentes', null, null, 'Sin gastos fijos')}</div>`;
 }
 
 function vMetas() {
@@ -1022,17 +1062,20 @@ function vMetas() {
   return `
   <div class="card kpi" id="t-sobrante"><span>Tu sobrante promedio al mes (ingresos − gastos)</span><b class="${neto >= 0 ? 'pos' : 'neg'}">${money(neto)}</b><small>Con esto se calcula cuándo llegas a cada meta.</small></div>
   <div class="section" id="t-metas"><div class="section-head"><h2>Metas a largo plazo</h2><button class="btn ghost small" data-act="nuevo" data-t="metas"><i class="bi bi-plus-lg" aria-hidden="true"></i>Meta</button></div>
-    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">${metas.join('') || vacio('Crea tu primera meta: fondo de emergencia (3 meses de gastos), algo que quieras comprar, un viaje…', 'metas')}</div></div>
+    <div class="grid grid-cols-1 gap-3 md:grid-cols-2">${metas.join('') || vacio('Empieza por un fondo de emergencia de 3 meses de gastos, o algo que quieras comprar.', 'metas', null, null, 'Sin metas todavía')}</div></div>
   <div class="section" id="t-presupuestos"><div class="section-head"><h2>Presupuestos de ${MESES[new Date().getMonth()]}</h2><button class="btn ghost small" data-act="nuevo" data-t="presupuestos"><i class="bi bi-plus-lg" aria-hidden="true"></i>Presupuesto</button></div>
-    <div class="list">${pres.join('') || vacio('Ponle un tope mensual a comida, salidas, ropa… y te aviso cuando te pases.')}</div></div>`;
+    <div class="list">${pres.join('') || vacio('Ponle tope mensual a comida, salidas o ropa y te aviso cuando te acerques.', 'presupuestos', null, null, 'Sin presupuestos')}</div></div>`;
 }
 
 function itemEvento(e, fecha) {
+  const dias = Math.round((new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()) - hoyD()) / 864e5);
+  const dow = fecha.toLocaleDateString('es-MX', { weekday: 'short' }).replace('.', '');
   const ic = (n, t) => `<span class="inline-flex items-center gap-1"><i class="bi bi-${n}" aria-hidden="true"></i>${esc(t)}</span>`;
-  const sub = [esc(fLarga(fecha)), e.hora ? ic('clock', String(e.hora).slice(0, 5)) : '', e.etiqueta && e.etiqueta !== 'Recordatorio' ? esc(e.etiqueta) : '',
+  const cuando = dias === 0 ? 'Hoy' : dias === 1 ? 'Mañana' : dias > 1 && dias < 7 ? `En ${dias} días` : `${fecha.getDate()} ${MESES[fecha.getMonth()].slice(0, 3)}`;
+  const sub = [esc(cuando), e.hora ? ic('clock', String(e.hora).slice(0, 5)) : '', e.etiqueta && e.etiqueta !== 'Recordatorio' ? esc(e.etiqueta) : '',
     e.grupo ? ic('people-fill', nombreGrupo(e.grupo)) : '', e.de ? esc('de ' + e.de) : '', e.sinUso ? '<span class="text-bad">no lo usas</span>' : '',
     e.repetir && e.repetir !== 'no se repite' ? ic('arrow-repeat', e.repetir) : ''].filter(Boolean).join(' · ');
-  return `<div class="item" ${e.ref ? `data-act="edit" data-t="${e.ref.t}" data-id="${e.ref.id}"` : ''}><i class="dot t-${e.tipo}"></i>
+  return `<div class="item" ${e.ref ? `data-act="edit" data-t="${e.ref.t}" data-id="${e.ref.id}"` : ''}><span class="fecha-chip c-${e.tipo} ${dias === 0 ? 'hoy' : ''}" title="${esc(fLarga(fecha))}"><b>${fecha.getDate()}</b><small>${dias === 0 ? 'hoy' : dow}</small></span>
     <div class="main"><b>${esc(e.txt)}</b><small class="flex flex-wrap items-center gap-x-1">${sub}${e.ref ? clip(e.ref.t, e.ref.id) : ''}</small></div>
     ${e.monto ? `<span class="amt">${money(e.monto)}</span>` : ''}
     <a class="gcal" data-act="link" href="${gcalUrl(e, fecha)}" target="_blank" rel="noopener" title="Agregar a Google Calendar" aria-label="Agregar a Google Calendar"><i class="bi bi-calendar-plus" aria-hidden="true"></i><span class="hidden sm:inline">Google</span></a></div>`;
@@ -1068,7 +1111,7 @@ function vAgenda() {
       <div class="list">
         ${lista.map(e => itemEvento(e, new Date(agY, agM, e.day))).join('')}
         ${reales.map(m => `<button class="item" data-act="edit" data-t="${m.tipo === 'ingreso' ? 'ingresos' : 'gastos'}" data-id="${m.id}"><i class="dot t-${m.tipo}"></i><div class="main"><b>${esc(m.concepto)}</b><small>${m.tipo} registrado${m.grupo_id ? ' · <i class="bi bi-people-fill" aria-hidden="true"></i> ' + esc(nombreGrupo(m.grupo_id)) : ''}${clip(m.tipo === 'ingreso' ? 'ingresos' : 'gastos', m.id)}</small></div><span class="amt ${m.tipo === 'ingreso' ? 'pos' : 'neg'}">${money(m.monto)}</span></button>`).join('')}
-        ${!lista.length && !reales.length ? vacio(agSel ? 'Nada en este día.' : 'Nada programado este mes.') : ''}
+        ${!lista.length && !reales.length ? vacio(agSel ? 'No tienes pagos, eventos ni movimientos este día.' : 'Agrega un evento o tus pagos fijos para verlos en el calendario.', agSel ? null : 'eventos', null, 'calendar', agSel ? 'Día libre' : 'Nada programado este mes') : ''}
       </div></div>
     </div>
   </div>`;
@@ -1110,7 +1153,7 @@ function vGrupo() {
       <div class="list" style="margin-top:12px">${pagos.length ? pagos.map(p => `
         <div class="pago-sug"><div><b>${esc(aliasDe(p.de, g.id))}</b> <i class="bi bi-arrow-right text-muted" aria-hidden="true"></i> <b>${esc(aliasDe(p.para, g.id))}</b></div><b class="amt">${money(p.monto)}</b>
         ${DEMO || p.de === ME || p.para === ME ? `<button class="btn primary small" data-act="liquidar" data-de="${p.de}" data-para="${p.para}" data-monto="${p.monto}">Registrar pago</button>` : ''}</div>`).join('')
-        : '<div class="empty"><i class="bi bi-check2-circle text-ok text-2xl block mb-1" aria-hidden="true"></i>Están a mano</div>'}</div>
+        : vacio('Nadie le debe a nadie en este grupo.', null, null, 'check2-circle', 'Están a mano', 'ok')}</div>
       <p class="small muted" style="margin-top:10px">Se calcula con los gastos compartidos y los pagos entre ustedes. Adjunta el comprobante de la transferencia como evidencia.</p>
       <button class="btn ghost small" data-act="liquidar"><i class="bi bi-plus-lg" aria-hidden="true"></i>Otro pago entre compañeros</button>
     </div>
@@ -1120,7 +1163,7 @@ function vGrupo() {
     <div class="list">${gastosG.slice(0, 30).map(x => `
       <button class="item" data-act="edit" data-t="gastos" data-id="${x.id}"><div class="main"><b>${esc(x.concepto)}</b>
         <small>${fLarga(x.fecha)} · pagó ${esc(aliasDe(x.pagado_por || x.user_id, g.id))} · entre ${participantesDe(x).length} · tu parte ${money(miParte(x))}${clip('gastos', x.id)}</small></div>
-        <span class="amt">${money(x.monto)}</span></button>`).join('') || vacio('Aún no hay gastos compartidos. Súper, luz, gas, garrafones…', 'gastos', g.id)}
+        <span class="amt">${money(x.monto)}</span></button>`).join('') || vacio('Súper, luz, gas, garrafones… registra quién pagó y se divide solo.', 'gastos', g.id, null, 'Sin gastos compartidos')}
     ${gastosG.length ? `<button class="btn ghost small" data-act="nuevo" data-t="gastos" data-g="${g.id}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Gasto compartido</button>` : ''}</div></div>
 
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">
@@ -1128,9 +1171,9 @@ function vGrupo() {
       <div class="list">${fijosG.map(r => { const prox = proximaFecha(r.proximo_cobro, r.frecuencia); return `
         <div class="item" data-act="edit" data-t="recurrentes" data-id="${r.id}"><div class="main"><b>${esc(r.nombre)}</b>
           <small>${money(r.monto)} ${esc(r.frecuencia)} · ${money(parteFijo(r))} c/u · próximo ${prox ? fCorta(prox) : '—'}</small></div>
-          <button class="btn primary small" data-act="pagar-fijo" data-id="${r.id}">Ya se pagó</button></div>`; }).join('') || '<div class="empty">Renta, internet, luz… se dividen entre todos.</div>'}</div></div>
+          <button class="btn primary small" data-act="pagar-fijo" data-id="${r.id}">Ya se pagó</button></div>`; }).join('') || vacio('Renta, internet, luz… se dividen entre todos.', 'recurrentes', g.id, null, 'Sin gastos fijos compartidos')}</div></div>
     <div><div class="section-head"><h2>Próximos 30 días</h2><button class="btn ghost small" data-act="nuevo" data-t="eventos" data-g="${g.id}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Evento</button></div>
-      <div class="list">${evs.map(e => itemEvento(e, e.fecha)).join('') || '<div class="empty">Sin eventos compartidos.</div>'}</div></div>
+      <div class="list">${evs.map(e => itemEvento(e, e.fecha)).join('') || vacio('Agenda la renta, el pago de luz o la junta del depa.', 'eventos', g.id, null, 'Sin eventos compartidos')}</div></div>
   </div>
 
   ${metasG.length ? `<div class="section"><div class="section-head"><h2>Metas del grupo</h2></div><div class="list">${metasG.map(m => `
@@ -1140,7 +1183,7 @@ function vGrupo() {
   <div class="section"><div class="section-head"><h2>Pagos entre ustedes</h2></div>
     <div class="list">${liqs.map(l => `
       <button class="item" data-act="edit" data-t="liquidaciones" data-id="${l.id}"><div class="main"><b>${esc(aliasDe(l.de, g.id))} le pagó a ${esc(aliasDe(l.para, g.id))}</b><small>${fLarga(l.fecha)}${l.notas ? ' · ' + esc(l.notas) : ''}${clip('liquidaciones', l.id)}</small></div>
-      <span class="amt pos">${money(l.monto)}</span></button>`).join('') || '<div class="empty">Sin pagos registrados.</div>'}</div></div>
+      <span class="amt pos">${money(l.monto)}</span></button>`).join('') || vacio('Cuando alguien le transfiera a otro, regístralo con su comprobante.', null, null, 'cash-coin', 'Sin pagos entre ustedes')}</div></div>
 
   <div class="section actions"><button class="btn ghost small" data-act="crear-grupo"><i class="bi bi-plus-lg" aria-hidden="true"></i>Crear otro grupo</button><button class="btn ghost small" data-act="unirse-grupo">Unirme a otro grupo</button></div>`;
 }
@@ -1149,7 +1192,7 @@ const VISTAS = { resumen: vResumen, movimientos: vMovimientos, deudas: vDeudas, 
 function render(animar = false) {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
   const v = $('#view');
-  v.innerHTML = VISTAS[tab]();
+  v.innerHTML = VISTAS[tab]() + `<footer class="pie-app" data-version>${textoVersion()}</footer>`;
   if (tab === 'resumen') dibujarResumen();
   if (animar) { animarEntrada(v); contarMontos(v); }
 }
@@ -1200,6 +1243,7 @@ $('#view').addEventListener('click', async e => {
       case 'nuevo-evento': abrirForm('eventos', null, { pre: { fecha: v || today(), ...(tab === 'grupo' && grupoSel ? { grupo_id: grupoSel } : {}) } }); break;
       case 'tab': tab = v; render(true); window.scrollTo({ top: 0 }); break;
       case 'serie': vistaSerie = v; render(); break;
+      case 'periodo': heroPeriodo = v; render(); contarMontos($('#view .hero')); break;
       case 'movtipo': movTipo = v; render(); break;
       case 'dia': agSel = Number(v) && agSel !== Number(v) ? Number(v) : null; render(); break;
       case 'mes': {
@@ -1529,11 +1573,11 @@ function abrirAvisos() {
         ${vistas.has(a.id) ? '' : '<i class="aviso-punto" aria-label="sin leer"></i>'}
       </button>`).join('')}</div>`;
   }).join('');
-  const vacio = `<div class="empty"><i class="bi bi-bell-slash text-3xl block mb-2" aria-hidden="true"></i>Todo al día. Aquí te avisaré de pagos próximos, presupuestos y lo que registren tus roomies.</div>`;
+  const sinAvisos = vacio('Aquí te avisaré de pagos próximos, presupuestos y lo que registren tus roomies.', null, null, 'bell-slash', 'Todo al día', 'ok');
   const ids = avisosCache.map(a => a.id);
   SWAL.fire({
     title: '<i class="bi bi-bell" aria-hidden="true"></i> Notificaciones', width: 520,
-    html: `<div class="avisos text-left">${secciones || vacio}</div>`,
+    html: `<div class="avisos text-left">${secciones || sinAvisos}</div>`,
     showConfirmButton: false, showDenyButton: true, showCancelButton: true,
     denyButtonText: '<i class="bi bi-gear" aria-hidden="true"></i> Ajustes', cancelButtonText: 'Cerrar',
     didOpen: popup => popup.querySelectorAll('[data-aviso]').forEach(b => b.addEventListener('click', () => {
@@ -1752,7 +1796,7 @@ async function mostrarApp() {
   setTimeout(() => ofrecerAvisos(), 2500);
 }
 function mostrarLogin() {
-  $('#app').hidden = true; $('#login').hidden = false; ocultarCargador();
+  $('#app').hidden = true; $('#login').hidden = false; ocultarCargador(); pintarVersion();
   // Estado limpio cada vez que aparece el login (p. ej. al cerrar sesión)
   loginExitoso = false; lf.classList.remove('exito', 'sacudir'); bloquearForm(false);
   estadoBoton($('#btn-entrar')); estadoBoton($('#btn-crear')); limpiarErrores(); lf.elements.password.value = '';
@@ -1930,6 +1974,8 @@ async function enviarLogin(modo = 'login') {
 }
 
 lf.addEventListener('submit', e => { e.preventDefault(); enviarLogin(e.submitter?.dataset.modo || 'login'); });
+// Enter en correo o contraseña siempre es "Entrar" (aunque el primer botón sea "Crear cuenta")
+lf.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('input')) { e.preventDefault(); enviarLogin('login'); } });
 // Al escribir se quita el error de ese campo
 lf.addEventListener('input', e => { const c = e.target.closest('[data-campo]'); if (c?.classList.contains('invalido')) errorCampo(c.dataset.campo, ''); });
 // Correo mal escrito: avisar al salir del campo

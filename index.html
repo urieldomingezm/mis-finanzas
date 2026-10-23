@@ -36,7 +36,7 @@
   <div id="barra-carga" hidden aria-hidden="true"></div>
 
   <!-- ============ LOGIN ============ -->
-  <section id="login" class="grid min-h-dvh place-items-center p-4" hidden>
+  <section id="login" class="grid min-h-dvh place-content-center justify-items-center gap-4 p-4" hidden>
     <form id="login-form" class="login-card" novalidate>
       <img src="icon.svg" alt="" width="56" height="56" class="mx-auto login-logo">
       <h1 class="text-2xl">Mis Finanzas</h1>
@@ -69,12 +69,13 @@
       </div>
 
       <div class="login-botones">
-      <button class="btn primary btn-estado" data-modo="login" id="btn-entrar"><span class="btn-txt"><i class="bi bi-box-arrow-in-right"></i>Entrar</span></button>
-      <button class="btn ghost btn-estado" data-modo="signup" id="btn-crear"><span class="btn-txt"><i class="bi bi-person-plus"></i>Crear cuenta</span></button>
+        <button class="btn ghost btn-estado" data-modo="signup" id="btn-crear"><span class="btn-txt"><i class="bi bi-person-plus"></i>Crear cuenta</span></button>
+        <button class="btn primary btn-estado" data-modo="login" id="btn-entrar"><span class="btn-txt"><i class="bi bi-box-arrow-in-right"></i>Entrar</span></button>
       </div>
       <button type="submit" class="link-btn" id="btn-reset" data-modo="reset" formnovalidate>Olvidé mi contraseña</button>
       <a data-apk hidden class="btn ghost small mt-1" download><i class="bi bi-android2"></i>Descargar app para Android</a>
     </form>
+    <p class="login-pie" data-version></p>
   </section>
 
   <!-- ============ APP ============ -->
@@ -103,8 +104,8 @@
 
     <div id="demo-banner" class="banner" hidden>
       <i class="bi bi-info-circle text-warn"></i>
-      <span class="flex-1">Estás en <b>modo demo</b>: tus datos viven solo en este navegador. Configura Supabase en <code>config.js</code> para tenerlos en la nube y en todos tus dispositivos.</span>
-      <button class="btn ghost small" id="btn-ejemplo">Cargar datos de ejemplo</button>
+      <span class="banner-txt"><b>Modo demo:</b> los datos se guardan solo en este navegador. Configura Supabase en <code>config.js</code> para guardarlos en la nube.</span>
+      <button class="btn ghost small" id="btn-ejemplo"><i class="bi bi-magic"></i>Cargar ejemplo</button>
     </div>
 
     <main id="view" aria-live="polite"></main>

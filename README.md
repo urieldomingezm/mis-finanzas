@@ -160,7 +160,10 @@ La primera vez que entras aparece un recorrido por todas las secciones. Después
 | `config.js` | Tus llaves de Supabase |
 | `supabase/schema.sql` | Tablas, seguridad entre usuarios y almacenamiento de evidencias |
 | `manifest.json`, `sw.js`, `icon.svg` | Para instalarla como app en el celular |
-| `vendor/` | Supabase JS, Chart.js, Driver.js, SweetAlert2 y Bootstrap Icons (licencias MIT en `LICENSES.txt`) |
+| `vendor/` | Supabase JS, Chart.js, Driver.js, SweetAlert2, Bootstrap Icons y las tipografías Bricolage Grotesque e Instrument Sans (licencias MIT y OFL en `LICENSES.txt`) |
+
+## Versión
+La versión está en `package.json` (`"version"`) y es la misma para la web y la app. Se ve abajo del login y al final de cada sección (p. ej. *Mis Finanzas v1.2.0 · Web* o *· App Android*; en la app también el número de compilación). Para publicar una versión nueva, súbela en `package.json` antes de hacer push.
 
 ## Editar el diseño (Tailwind CSS)
 La página usa `css/app.css`, que se genera desde `src/app.css` con Tailwind. Si cambias clases en `index.html` o `app.js`, o estilos en `src/app.css`, recompila:

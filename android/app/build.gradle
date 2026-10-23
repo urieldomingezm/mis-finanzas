@@ -9,9 +9,9 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         // En GitHub Actions cada compilación sube el número, así la APK nueva se instala encima de la anterior
         versionCode((System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInteger())
-        // La versión sale de package.json (p. ej. 1.1.0 → 1.1.<número de compilación>)
+        // La versión sale de package.json (la misma que muestra la web); versionCode = número de compilación
         def versionApp = new groovy.json.JsonSlurper().parse(rootProject.file('../package.json')).version
-        versionName versionApp.replaceAll(/\.\d+$/, '') + "." + (System.getenv("GITHUB_RUN_NUMBER") ?: "0")
+        versionName versionApp
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.

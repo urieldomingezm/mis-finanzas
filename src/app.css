@@ -7,23 +7,38 @@
 @source "../index.html";
 @source "../app.js";
 
-/* ---------- Paleta (cambia sola entre claro y oscuro) ---------- */
+/* ---------- Tipografías (incluidas en el repo, sin depender de internet) ---------- */
+@font-face {
+  font-family: "Bricolage Grotesque"; src: url("../vendor/fonts/bricolage-grotesque-latin.woff2") format("woff2");
+  font-weight: 200 800; font-stretch: 75% 100%; font-style: normal; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "Instrument Sans"; src: url("../vendor/fonts/instrument-sans-latin.woff2") format("woff2");
+  font-weight: 400 700; font-stretch: 75% 100%; font-style: normal; font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* ---------- Paleta (cambia sola entre claro y oscuro) ----------
+   Bosque = la marca · Bosque profundo = el bloque de "Te queda" · Maíz = el acento del logo */
 :root {
-  --bg: #f5f6f2; --surface: #ffffff; --surface-2: #eef0ea; --text: #18201b; --muted: #5f685f;
-  --line: #dde2d8; --brand: #1f7a55; --brand-ink: #ffffff; --brand-soft: #e2f1e9;
-  --ok: #1f7a55; --bad: #c2410c; --warn: #a86a10; --info: #2f6fa3; --c-evento: #7b4fa8;
-  --c1: #1f7a55; --c2: #c2410c; --c3: #2f6fa3; --c4: #a86a10; --c5: #7b4fa8; --c6: #5f685f;
-  --shadow: 0 1px 2px rgb(0 0 0 / .04), 0 6px 18px rgb(20 40 30 / .06);
+  --bg: #f2f4f1; --surface: #ffffff; --surface-2: #ebefea; --text: #142019; --muted: #586660;
+  --line: #dbe2dc; --brand: #1b6e4c; --brand-ink: #ffffff; --brand-soft: #dcefe4;
+  --hero: #0f4f36; --hero-ink: #f2f7f3; --maiz: #f2b33d;
+  --ok: #1b6e4c; --bad: #c2481a; --warn: #9a6512; --info: #2d6a9f; --c-evento: #7b4fa8;
+  --c1: #1b6e4c; --c2: #c2481a; --c3: #2d6a9f; --c4: #c98a1b; --c5: #7b4fa8; --c6: #8a978f;
+  --shadow: 0 1px 2px rgb(15 40 28 / .05), 0 10px 28px rgb(15 40 28 / .08);
   --nav-h: 64px; --top-h: 60px;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #0e1210; --surface: #161c18; --surface-2: #1e2621; --text: #e6ece6; --muted: #98a398;
-    --line: #28312b; --brand: #43b883; --brand-ink: #07130d; --brand-soft: #173326;
-    --ok: #43b883; --bad: #f08a55; --warn: #e2b14d; --info: #6eaade; --c-evento: #b38ae0;
-    --c1: #43b883; --c2: #f08a55; --c3: #6eaade; --c4: #e2b14d; --c5: #b38ae0; --c6: #98a398;
-    --shadow: none;
+    --bg: #0c1310; --surface: #141c17; --surface-2: #1b2520; --text: #e6ede8; --muted: #95a49b;
+    --line: #253129; --brand: #4cc28d; --brand-ink: #06130c; --brand-soft: #15382a;
+    --hero: #134430; --hero-ink: #eef6f1; --maiz: #f2b33d;
+    --ok: #4cc28d; --bad: #f08a5d; --warn: #e2b14d; --info: #6eaade; --c-evento: #b38ae0;
+    --c1: #4cc28d; --c2: #f08a5d; --c3: #6eaade; --c4: #e2b14d; --c5: #b38ae0; --c6: #7d8c84;
+    --shadow: 0 10px 30px rgb(0 0 0 / .35);
   }
 }
 
@@ -44,15 +59,18 @@
   --color-info: var(--info);
   --color-evento: var(--c-evento);
   --shadow-suave: var(--shadow);
-  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  --color-hero: var(--hero);
+  --color-maiz: var(--maiz);
+  --font-sans: "Instrument Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Bricolage Grotesque", "Instrument Sans", system-ui, sans-serif;
 }
 
 /* ---------- Base ---------- */
 @layer base {
   html { -webkit-text-size-adjust: 100%; }
   body { @apply bg-bg text-ink font-sans text-[15px] leading-normal antialiased; }
-  h1, h2, h3 { @apply leading-tight font-bold; }
-  h2 { @apply text-[1.05rem]; }
+  h1, h2, h3 { @apply font-display leading-tight font-bold tracking-[-0.01em]; font-variation-settings: "opsz" 48; }
+  h2 { @apply text-[1.15rem]; }
   code { @apply bg-surface-2 rounded-md px-1.5 py-px text-[.88em]; }
   button { @apply cursor-pointer; }
   input, select, textarea {
@@ -521,3 +539,127 @@
   .login-card { max-width: 36rem; }
   .login-campos { grid-template-columns: 1fr 1fr; }
 }
+
+/* =====================================================================
+   Rediseño 1.2 — un solo elemento protagonista (el bloque "Te queda"),
+   todo lo demás tranquilo: listas agrupadas, franja de indicadores,
+   cuadros vacíos que invitan a actuar.
+   ===================================================================== */
+.brand span { font-family: var(--font-display); font-weight: 750; font-size: 1.12rem; letter-spacing: -.015em; }
+.card { box-shadow: none; border-radius: 18px; }
+.section-head h2 { font-size: 1.15rem; }
+.swal-titulo { font-family: var(--font-display); letter-spacing: -.01em; }
+.dcard .saldo, .kpi b { font-family: var(--font-display); font-weight: 700; letter-spacing: -.02em; }
+
+/* ---------- Inicio: acomodo ---------- */
+.inicio { display: grid; gap: 1.5rem; grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "hero" "stats" "proximos" "fugas" "grafica" "dona"; }
+.inicio > .hero { grid-area: hero; }
+.inicio > .stats { grid-area: stats; }
+.inicio > .zona-grafica { grid-area: grafica; }
+.inicio > .zona-proximos { grid-area: proximos; }
+.inicio > .zona-fugas { grid-area: fugas; }
+.inicio > .zona-dona { grid-area: dona; }
+@media (width >= 64rem) {
+  .inicio { column-gap: 1.25rem; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    grid-template-areas: "hero grafica" "stats stats" "proximos fugas" "dona fugas"; align-items: start; }
+  .inicio > .hero, .inicio > .zona-grafica { align-self: stretch; }
+}
+
+/* ---------- Bloque protagonista: lo que te queda ---------- */
+.hero { position: relative; isolation: isolate; overflow: hidden; border-radius: 24px; padding: 1.15rem 1.25rem 1.1rem;
+  background: var(--hero); color: var(--hero-ink); box-shadow: var(--shadow); }
+.hero-trazo { position: absolute; right: -4%; bottom: 34%; width: 62%; height: 40%; z-index: -1; fill: none; stroke: var(--maiz);
+  stroke-width: 12px; stroke-linecap: round; stroke-linejoin: round; opacity: .12; vector-effect: non-scaling-stroke; }
+.hero-trazo path { vector-effect: non-scaling-stroke; }
+.hero-top { display: flex; align-items: center; justify-content: space-between; gap: .75rem; }
+.seg.seg-hero { background: rgb(255 255 255 / .12); }
+.seg.seg-hero button { color: rgb(255 255 255 / .78); }
+.seg.seg-hero button.on { background: var(--hero-ink); color: var(--hero); box-shadow: none; }
+.hero-rango { font-size: .85rem; opacity: .75; text-transform: capitalize; }
+.hero-label { margin-top: 1.4rem; font-size: .95rem; opacity: .88; }
+.hero-monto { margin-top: .2rem; font-family: var(--font-display); font-variation-settings: "opsz" 96; font-weight: 700;
+  font-size: clamp(2.6rem, 10vw, 3.75rem); line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+.hero-monto.rojo { color: #ffb69c; }
+.hero-barra { margin-top: 1.15rem; height: 10px; border-radius: 99px; overflow: hidden; background: rgb(255 255 255 / .16); }
+.hero-barra i { display: block; height: 100%; border-radius: 99px; background: var(--maiz); transition: width .8s cubic-bezier(.2, .8, .2, 1); }
+.hero-barra.rojo i { background: #ff8a65; }
+.hero-uso { margin-top: .5rem; font-size: .85rem; opacity: .85; }
+.hero-filas { margin-top: 1.1rem; padding-top: .9rem; display: grid; grid-template-columns: 1fr 1fr; gap: .75rem;
+  border-top: 1px solid rgb(255 255 255 / .14); }
+.hero-filas span { display: flex; align-items: center; gap: .35rem; font-size: .8rem; opacity: .8; }
+.hero-filas b { display: block; margin-top: .15rem; font-family: var(--font-display); font-size: 1.2rem; font-weight: 650; font-variant-numeric: tabular-nums; }
+@media (width >= 64rem) { .hero { padding: 1.5rem 1.6rem 1.4rem; } }
+
+/* ---------- Franja de indicadores (una sola pieza, no cuatro tarjetas) ---------- */
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; overflow: hidden; border-radius: 18px;
+  background: var(--line); border: 1px solid var(--line); }
+@media (width >= 48rem) { .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+.stat { display: grid; align-content: start; gap: .15rem; min-width: 0; padding: .9rem 1rem; background: var(--surface); text-align: left; }
+.stat > span { display: flex; align-items: center; gap: .4rem; font-size: .8rem; color: var(--muted); }
+.stat > b { font-family: var(--font-display); font-size: 1.3rem; font-weight: 650; line-height: 1.15; letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stat > small { font-size: .75rem; color: var(--muted); }
+.stat.clickable { cursor: pointer; transition: background-color .15s; }
+.stat.clickable:hover { background: var(--surface-2); }
+
+/* ---------- Listas agrupadas (una pieza con divisiones finas) ---------- */
+.list { gap: 0; overflow: hidden; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
+.list:has(> .empty:only-child) { overflow: visible; border: 0; border-radius: 0; background: none; }
+.list > .item, .list > .fuga, .list > .pago-sug { border: 0; border-radius: 0; border-bottom: 1px solid var(--line); background: transparent; }
+.list > :last-child { border-bottom: 0; }
+.item { padding: .8rem 1rem; transition: background-color .15s; }
+.item:hover, .card.clickable:hover { transform: none; box-shadow: none; }
+.item:hover { background: var(--surface-2); }
+.item .main b { font-weight: 600; }
+.gcal { border-color: transparent; color: var(--muted); }
+
+/* Fichita de fecha tipo calendario */
+.fecha-chip { flex: none; display: grid; place-content: center; width: 2.75rem; height: 2.9rem; border-radius: 12px;
+  text-align: center; line-height: 1; background: var(--surface-2); }
+.fecha-chip b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; font-variant-numeric: tabular-nums; }
+.fecha-chip small { margin-top: .2rem; font-size: .68rem; color: inherit; opacity: .8; }
+.fecha-chip.c-deuda { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, var(--surface)); }
+.fecha-chip.c-fijo { color: var(--info); background: color-mix(in srgb, var(--info) 12%, var(--surface)); }
+.fecha-chip.c-evento { color: var(--c-evento); background: color-mix(in srgb, var(--c-evento) 12%, var(--surface)); }
+.fecha-chip.c-meta { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); }
+.fecha-chip.hoy { color: #fff; background: var(--bad); }
+
+/* Fugas como renglones con ícono */
+.fuga { align-items: flex-start; gap: .75rem; padding: .85rem 1rem; border-left-width: 0; }
+.fuga-ic { flex: none; display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: 10px; font-size: .95rem; }
+.fuga.alta .fuga-ic { color: var(--bad); background: color-mix(in srgb, var(--bad) 13%, transparent); }
+.fuga.media .fuga-ic { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.fuga.baja .fuga-ic { color: var(--info); background: color-mix(in srgb, var(--info) 13%, transparent); }
+.fuga b { font-weight: 600; }
+.fuga .ahorro strong { font-family: var(--font-display); font-size: 1rem; color: var(--ok); }
+.fuga .ahorro span { display: block; font-size: .72rem; color: var(--muted); }
+
+/* ---------- Cuadros vacíos: se distinguen del resto e invitan a actuar ---------- */
+.empty { grid-column: 1 / -1; display: flex; flex-direction: column; align-items: center; gap: .8rem; padding: 1.75rem 1.25rem;
+  text-align: center; color: var(--text); border-radius: 18px;
+  background: color-mix(in srgb, var(--brand) 6%, var(--surface));
+  border: 1.5px dashed color-mix(in srgb, var(--brand) 40%, transparent); }
+.empty-ic { display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: 16px; font-size: 1.35rem;
+  color: var(--brand); background: color-mix(in srgb, var(--brand) 15%, var(--surface)); }
+.empty-txt b { display: block; font-family: var(--font-display); font-size: 1.05rem; font-weight: 700; letter-spacing: -.01em; }
+.empty-txt p { max-width: 36ch; margin: .25rem auto 0; font-size: .9rem; color: var(--muted); }
+.card > .empty { border: 0; background: none; padding: 1.25rem .5rem .5rem; }
+
+
+/* ---------- Gráficas ---------- */
+.zona-dona .chart-box { height: 300px; }
+@media (width >= 32.5rem) { .zona-dona .chart-box { height: 240px; } }
+
+/* ---------- Aviso de modo demo y pie con versión ---------- */
+.banner { gap: .5rem .75rem; }
+.banner-txt { flex: 1 1 15rem; min-width: 0; }
+.pie-app { margin-top: 2.5rem; text-align: center; font-size: .75rem; color: var(--muted); }
+.pie-app:empty { display: none; }
+.login-pie { font-size: .75rem; color: var(--muted); text-align: center; }
+.avisos-titulo { text-transform: none; letter-spacing: 0; font-size: .85rem; }
+.list > .btn { justify-content: center; padding: .75rem 1rem; border: 0; border-radius: 0; border-top: 1px solid var(--line); color: var(--brand); background: transparent; }
+.list > .btn:hover { background: var(--surface-2); }
+.gcal span { display: none; }
+.gcal { width: 2.25rem; height: 2.25rem; justify-content: center; padding: 0; font-size: .95rem; border-radius: 10px; }
+.gcal:hover { background: var(--surface-2); border-color: transparent; }
