@@ -10,7 +10,10 @@ if (window.top !== window.self) { try { window.top.location = window.self.locati
 /* ---------- Configuración / conexión ---------- */
 const CFG  = window.APP_CONFIG || {};
 const DEMO = !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY || !window.supabase;
-const sb   = DEMO ? null : window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
+// Si regresas de Google con un error (cancelaste, cuenta bloqueada…), guárdalo antes de que Supabase limpie la URL
+const paramsOAuth = s => new URLSearchParams(String(s || '').replace(/^[#?]/, ''));
+const ERROR_OAUTH = paramsOAuth(location.hash).get('error_description') || paramsOAuth(location.search).get('error_description') || '';
+const sb   =DEMO ? null : window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY);
 const BUCKET = 'evidencias';
 const DEMO_COMPA = 'demo-compa';
 let ME = DEMO ? 'demo-yo' : null;   // id del usuario actual
@@ -1817,7 +1820,7 @@ function mostrarLogin() {
   $('#app').hidden = true; $('#login').hidden = false; ocultarCargador(); pintarVersion();
   // Estado limpio cada vez que aparece el login (p. ej. al cerrar sesión)
   loginExitoso = false; lf.classList.remove('exito', 'sacudir'); bloquearForm(false);
-  estadoBoton($('#btn-entrar')); estadoBoton($('#btn-crear')); limpiarErrores(); lf.elements.password.value = '';
+  estadoBoton($('#btn-entrar')); estadoBoton($('#btn-crear')); estadoBoton($('#btn-google')); limpiarErrores(); lf.elements.password.value = '';
 }
 
 /* ---------- Inicio de sesión con retroalimentación animada ---------- */
@@ -2012,6 +2015,70 @@ lf.elements.password.addEventListener('keyup', revisarMayus);
 lf.elements.password.addEventListener('keydown', revisarMayus);
 lf.elements.password.addEventListener('blur', () => { $('#aviso-mayus').hidden = true; });
 
+/* ---------- Entrar con Google ---------- */
+// En la app Android, Google regresa a este enlace (definido en AndroidManifest.xml)
+const OAUTH_APP = 'io.github.urieldomingezm.misfinanzas://login-callback';
+const btnGoogle = $('#btn-google');
+
+// El botón solo aparece si Google está activado en Supabase (así no se rompe nada antes de configurarlo)
+async function revisarGoogle() {
+  if (DEMO) return;
+  try {
+    const r = await fetch(`${CFG.SUPABASE_URL}/auth/v1/settings`, { headers: { apikey: CFG.SUPABASE_ANON_KEY } });
+    if (r.ok && (await r.json())?.external?.google === true) $('#login-google').hidden = false;
+  } catch { /* sin conexión: queda solo el correo */ }
+}
+
+function falloGoogle(texto) {
+  loginEnCurso = false;
+  estadoBoton(btnGoogle); bloquearForm(false);
+  const cancelado = /denied|cancel/i.test(texto);
+  mostrarAlerta(cancelado
+    ? { tipo: 'aviso', icono: 'google', titulo: 'Inicio con Google cancelado', texto: 'No se completó el inicio de sesión. Puedes intentarlo de nuevo o entrar con tu correo.' }
+    : { tipo: 'error', icono: 'google', titulo: 'No se pudo entrar con Google', texto: texto || 'Inténtalo de nuevo en un momento.' });
+}
+
+async function entrarGoogle() {
+  if (DEMO || !navigator.onLine) return mostrarAlerta(errorAuth({ message: 'Failed to fetch' }));
+  limpiarErrores();
+  estadoBoton(btnGoogle, 'cargando', 'Abriendo Google…');
+  bloquearForm(true);
+  try {
+    const { data, error } = await sb.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: NATIVO ? OAUTH_APP : SITIO, skipBrowserRedirect: NATIVO, queryParams: { prompt: 'select_account' } }
+    });
+    if (error) throw error;
+    if (NATIVO) {
+      // Google no permite iniciar sesión dentro de una app web incrustada: se abre en el navegador del sistema
+      await PLUG.Browser.open({ url: data.url, presentationStyle: 'popover' });
+      estadoBoton(btnGoogle); bloquearForm(false);
+    }
+    // En la web la página se va a Google y regresa sola con la sesión
+  } catch (err) { falloGoogle(errorAuth(err).texto); }
+}
+btnGoogle.addEventListener('click', entrarGoogle);
+// Si regresas con el botón "atrás" del navegador, que el botón no quede cargando
+addEventListener('pageshow', e => { if (e.persisted) { estadoBoton(btnGoogle); bloquearForm(false); } });
+
+// App Android: Google regresa con los tokens en el enlace io.github…://login-callback#access_token=…
+let ultimoRegreso = '';
+async function volverDeGoogle(url) {
+  if (!url?.startsWith(OAUTH_APP) || url === ultimoRegreso) return;
+  ultimoRegreso = url;
+  PLUG.Browser?.close?.().catch(() => {});
+  const p = paramsOAuth(url.slice(OAUTH_APP.length).replace(/^\/?/, '').replace(/^[?#]/, '').replace(/[?#]/g, '&'));
+  if (p.get('error') || p.get('error_description')) return falloGoogle(p.get('error_description') || p.get('error'));
+  const access_token = p.get('access_token'), refresh_token = p.get('refresh_token');
+  if (!access_token || !refresh_token) return falloGoogle('Google no devolvió la sesión. Inténtalo de nuevo.');
+  estadoBoton(btnGoogle, 'cargando', 'Entrando…'); bloquearForm(true);
+  loginEnCurso = true;
+  const { error } = await sb.auth.setSession({ access_token, refresh_token }).catch(e => ({ error: e }));
+  if (error) return falloGoogle(errorAuth(error).texto);
+  loginExitoso = true;
+  estadoBoton(btnGoogle, 'exito', '¡Bienvenido!'); lf.classList.add('exito'); vibrar('exito');
+}
+
 $('#btn-logout').addEventListener('click', async () => { await sb.auth.signOut(); });
 $('#btn-ejemplo').addEventListener('click', cargarEjemplo);
 
@@ -2020,6 +2087,11 @@ async function boot() {
   const { data: { session } } = await sb.auth.getSession();
   usuario = session?.user || null;
   usuario ? mostrarApp() : mostrarLogin();
+  revisarGoogle();
+  if (ERROR_OAUTH) {
+    if (!usuario) falloGoogle(ERROR_OAUTH);
+    history.replaceState(null, '', location.pathname);   // que el error no se quede en la barra de direcciones
+  }
   sb.auth.onAuthStateChange((ev, s) => {
     if (ev === 'PASSWORD_RECOVERY') setTimeout(async () => {
       const { value: nueva } = await SWAL.fire({
@@ -2070,6 +2142,9 @@ if (NATIVO) {
     if (tab !== 'resumen') { tab = 'resumen'; render(true); window.scrollTo({ top: 0 }); return; }
     PLUG.App.exitApp();
   });
+  // Regreso de Google (io.github…://login-callback)
+  PLUG.App?.addListener('appUrlOpen', e => { volverDeGoogle(e?.url); });
+  PLUG.App?.getLaunchUrl?.().then(r => volverDeGoogle(r?.url)).catch(() => {});   // si Android cerró la app mientras estabas en Google
   // Al regresar a la app, trae lo que hayan registrado tus compañeros
   PLUG.App?.addListener('resume', () => { if (usuario && !Swal.isVisible()) refrescar(); else programarRecordatorios(); });
   // Notificaciones: canal de Android y abrir la sección al tocar el aviso

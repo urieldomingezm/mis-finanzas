@@ -71,6 +71,18 @@ En Supabase → **Authentication → URL Configuration**:
 
 Por defecto Supabase pide confirmar el correo al crear cuenta. Si la app es solo para ti y quieres entrar directo, puedes desactivar *Confirm email* en **Authentication → Sign In / Providers → Email**.
 
+## 4b. Entrar con Google (opcional)
+El botón **Continuar con Google** aparece solo cuando Google está activado en Supabase; mientras tanto el login sigue siendo con correo.
+
+1. En [Google Cloud Console](https://console.cloud.google.com/apis/credentials) → **Pantalla de consentimiento de OAuth**: tipo *Externo*, nombre "Mis Finanzas", tu correo de soporte, y publícala (**En producción**; con los permisos básicos no pide verificación).
+2. **Credenciales → Crear credenciales → ID de cliente de OAuth**, tipo **Aplicación web**:
+   - Orígenes autorizados de JavaScript: `https://urieldomingezm.github.io`
+   - URI de redireccionamiento autorizados: `https://pdmcxbdbtbykpfofmxrn.supabase.co/auth/v1/callback`
+3. En Supabase → **Authentication → Sign In / Providers → Google**: actívalo y pega el *Client ID* y el *Client Secret*. (El secreto solo va ahí, nunca en el repo.)
+4. En Supabase → **Authentication → URL Configuration → Redirect URLs**, agrega también `io.github.urieldomingezm.misfinanzas://login-callback` (para que la app Android reciba la sesión).
+
+En la app Android, Google se abre en el navegador del sistema (Google no permite iniciar sesión dentro de apps web incrustadas) y al terminar regresa sola a la app. Si ya tenías cuenta con el mismo correo de Gmail, Supabase la vincula y ves tus mismos datos.
+
 ## 5. Instalarla en tu celular
 Abre tu link en el celular:
 - **Android (Chrome)**: menú ⋮ → *Agregar a pantalla principal / Instalar app*.

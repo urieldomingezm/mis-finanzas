@@ -540,6 +540,14 @@
   .login-campos { grid-template-columns: 1fr 1fr; }
 }
 
+/* Entrar con Google */
+.login-google { display: grid; gap: .75rem; }
+.btn-google { width: 100%; background: var(--surface); color: var(--text); border: 1px solid var(--line); font-weight: 600; }
+.btn-google:hover:not(:disabled) { border-color: var(--brand); background: color-mix(in oklab, var(--brand) 6%, var(--surface)); }
+.btn-google .bi-google { color: #4285f4; }
+.login-separador { display: flex; align-items: center; gap: .75rem; font-size: .75rem; color: var(--muted); }
+.login-separador::before, .login-separador::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
 /* =====================================================================
    Rediseño 1.2 — un solo elemento protagonista (el bloque "Te queda"),
    todo lo demás tranquilo: listas agrupadas, franja de indicadores,
