@@ -448,3 +448,65 @@
 .tono-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
 .aviso-punto { @apply mt-1.5 size-2.5 flex-none rounded-full bg-brand; }
 .swal2-popup.swal-app .swal2-icon .bi { font-size: 2rem; }
+
+/* =====================================================================
+   Login: campos, errores y estados animados
+   ===================================================================== */
+.login-card { position: relative; }
+.login-logo { animation: entrar-arriba .6s .1s cubic-bezier(.2, .8, .2, 1) both; }
+.campo { @apply grid gap-1 text-left; }
+.campo label { @apply text-sm font-medium text-muted; }
+.input-ic { position: relative; }
+.input-ic > .bi { position: absolute; left: .85rem; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; transition: color .2s; font-size: 1rem; }
+.input-ic input { margin-top: 0; padding-left: 2.5rem; transition: border-color .2s, box-shadow .2s; }
+.input-ic input[name=password] { padding-right: 2.75rem; }
+.input-ic:focus-within > .bi { color: var(--brand); }
+.ver-pass { position: absolute; right: .35rem; top: 50%; transform: translateY(-50%); width: 2.25rem; height: 2.25rem; border-radius: 8px;
+  display: grid; place-items: center; color: var(--muted); }
+.ver-pass:hover { color: var(--text); background: var(--surface-2); }
+.ver-pass.pulso { animation: rebote .3s ease; }
+.campo-error { @apply flex min-h-0 items-center gap-1 text-[.8rem] font-medium text-bad; }
+.campo-error:empty { display: none; }
+.campo-error:not(:empty) { animation: entrar-arriba .25s ease both; }
+.campo-aviso { @apply flex items-center gap-1 text-[.8rem] font-medium text-warn; animation: entrar-arriba .25s ease both; }
+.campo.invalido input { border-color: var(--bad); box-shadow: 0 0 0 3px color-mix(in srgb, var(--bad) 18%, transparent); }
+.campo.invalido input:focus { outline-color: var(--bad); }
+.campo.invalido .input-ic > .bi { color: var(--bad); }
+
+@keyframes sacudir { 0%, 100% { transform: translateX(0); } 15% { transform: translateX(-9px); } 30% { transform: translateX(8px); }
+  45% { transform: translateX(-6px); } 60% { transform: translateX(4px); } 75% { transform: translateX(-2px); } }
+.sacudir { animation: sacudir .45s cubic-bezier(.36, .07, .19, .97) both; }
+
+/* Aviso dentro del formulario */
+.alerta { @apply flex items-start gap-3 rounded-xl border px-3.5 py-3 text-left text-sm; }
+.alerta b { @apply block text-[.95rem]; }
+.alerta p { @apply mt-0.5 leading-snug; color: color-mix(in srgb, currentColor 80%, var(--text)); }
+.alerta-ic { @apply mt-0.5 flex-none text-xl; }
+.alerta-error { color: var(--bad); background: color-mix(in srgb, var(--bad) 10%, var(--surface)); border-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+.alerta-aviso { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, var(--surface)); border-color: color-mix(in srgb, var(--warn) 35%, transparent); }
+.alerta-exito { color: var(--ok); background: color-mix(in srgb, var(--ok) 11%, var(--surface)); border-color: color-mix(in srgb, var(--ok) 35%, transparent); }
+.alerta-info { color: var(--info); background: color-mix(in srgb, var(--info) 11%, var(--surface)); border-color: color-mix(in srgb, var(--info) 35%, transparent); }
+.alerta-accion { @apply mt-1.5 inline-flex items-center gap-1 text-sm font-bold underline-offset-2 hover:underline; color: inherit; }
+.alerta-accion:disabled { opacity: .7; }
+.alerta-cerrar { @apply -mr-1 -mt-1 grid size-7 flex-none place-items-center rounded-lg opacity-70 hover:opacity-100; color: inherit; }
+@keyframes alerta-entra { from { opacity: 0; transform: translateY(-10px) scale(.97); max-height: 0; } to { opacity: 1; transform: none; max-height: 220px; } }
+@keyframes alerta-sale { to { opacity: 0; transform: translateY(-6px) scale(.97); } }
+.entra-alerta { animation: alerta-entra .35s cubic-bezier(.2, .8, .2, 1) both; overflow: hidden; }
+.sale-alerta { animation: alerta-sale .2s ease-in forwards; }
+.alerta-exito .alerta-ic { animation: rebote .6s .15s ease both; }
+.alerta-error .alerta-ic { animation: sacudir .45s .1s both; }
+
+/* Botones con estado: cargando / éxito */
+.spinner { width: 1em; height: 1em; border-radius: 50%; border: 2.5px solid currentColor; border-right-color: transparent;
+  display: inline-block; animation: girar .7s linear infinite; }
+@keyframes girar { to { transform: rotate(360deg); } }
+.btn-txt { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; }
+.btn-estado.cargando { cursor: progress; }
+.btn-estado.cargando .btn-txt, .btn-estado.exito .btn-txt { animation: aparecer .2s ease both; }
+.btn-estado.exito { background: var(--ok) !important; color: #fff !important; border-color: var(--ok) !important; animation: rebote .4s ease; }
+.btn-estado:disabled:not(.cargando):not(.exito) { opacity: .6; }
+.login-card.exito { animation: login-sale .55s .2s cubic-bezier(.4, 0, .2, 1) forwards; }
+@keyframes login-sale { to { opacity: 0; transform: scale(.96) translateY(-12px); } }
+#login:not([hidden]) .login-card.sacudir { animation: sacudir .45s cubic-bezier(.36, .07, .19, .97) both; }
+#login:not([hidden]) .login-card.exito { animation: login-sale .55s .2s cubic-bezier(.4, 0, .2, 1) forwards; }
+.btn-estado.exito:disabled, .btn-estado.cargando:disabled { opacity: 1; }

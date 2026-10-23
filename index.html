@@ -37,16 +37,38 @@
 
   <!-- ============ LOGIN ============ -->
   <section id="login" class="grid min-h-dvh place-items-center p-4" hidden>
-    <form id="login-form" class="login-card">
-      <img src="icon.svg" alt="" width="56" height="56" class="mx-auto">
+    <form id="login-form" class="login-card" novalidate>
+      <img src="icon.svg" alt="" width="56" height="56" class="mx-auto login-logo">
       <h1 class="text-2xl">Mis Finanzas</h1>
       <p class="muted">Cuánto ganas, en qué se te va y cuánto te falta para tus metas.</p>
-      <label>Correo<input type="email" name="email" required autocomplete="email" maxlength="254"></label>
-      <label>Contraseña<input type="password" name="password" required minlength="6" maxlength="72" autocomplete="current-password"></label>
-      <button class="btn primary" data-modo="login"><i class="bi bi-box-arrow-in-right"></i>Entrar</button>
-      <button class="btn ghost" data-modo="signup"><i class="bi bi-person-plus"></i>Crear cuenta</button>
+
+      <div id="login-alerta" class="alerta" role="alert" aria-live="assertive" hidden></div>
+
+      <div class="campo" data-campo="email">
+        <label for="login-email">Correo</label>
+        <div class="input-ic">
+          <i class="bi bi-envelope" aria-hidden="true"></i>
+          <input id="login-email" type="email" name="email" required autocomplete="email" maxlength="254" inputmode="email"
+                 autocapitalize="off" spellcheck="false" placeholder="tu@correo.com" aria-describedby="err-email">
+        </div>
+        <small class="campo-error" id="err-email"></small>
+      </div>
+
+      <div class="campo" data-campo="password">
+        <label for="login-pass">Contraseña</label>
+        <div class="input-ic">
+          <i class="bi bi-lock" aria-hidden="true"></i>
+          <input id="login-pass" type="password" name="password" required maxlength="72" autocomplete="current-password"
+                 placeholder="Tu contraseña" aria-describedby="err-pass">
+          <button type="button" class="ver-pass" aria-label="Mostrar contraseña" aria-pressed="false"><i class="bi bi-eye"></i></button>
+        </div>
+        <small class="campo-error" id="err-pass"></small>
+        <small class="campo-aviso" id="aviso-mayus" hidden><i class="bi bi-capslock-fill" aria-hidden="true"></i> Mayúsculas activadas</small>
+      </div>
+
+      <button class="btn primary btn-estado" data-modo="login" id="btn-entrar"><span class="btn-txt"><i class="bi bi-box-arrow-in-right"></i>Entrar</span></button>
+      <button class="btn ghost btn-estado" data-modo="signup" id="btn-crear"><span class="btn-txt"><i class="bi bi-person-plus"></i>Crear cuenta</span></button>
       <button type="submit" class="link-btn" id="btn-reset" data-modo="reset" formnovalidate>Olvidé mi contraseña</button>
-      <p id="login-msg" class="muted small" role="status"></p>
       <a data-apk hidden class="btn ghost small mt-1" download><i class="bi bi-android2"></i>Descargar app para Android</a>
     </form>
   </section>

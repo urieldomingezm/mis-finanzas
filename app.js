@@ -1751,31 +1751,203 @@ async function mostrarApp() {
   tourBienvenida();
   setTimeout(() => ofrecerAvisos(), 2500);
 }
-function mostrarLogin() { $('#app').hidden = true; $('#login').hidden = false; ocultarCargador(); }
+function mostrarLogin() {
+  $('#app').hidden = true; $('#login').hidden = false; ocultarCargador();
+  // Estado limpio cada vez que aparece el login (p. ej. al cerrar sesión)
+  loginExitoso = false; lf.classList.remove('exito', 'sacudir'); bloquearForm(false);
+  estadoBoton($('#btn-entrar')); estadoBoton($('#btn-crear')); limpiarErrores(); lf.elements.password.value = '';
+}
 
-$('#login-form').addEventListener('submit', async e => {
-  e.preventDefault();
-  const fd = new FormData(e.target), email = fd.get('email'), password = fd.get('password');
-  const modo = e.submitter?.dataset.modo || 'login', msg = $('#login-msg');
-  msg.textContent = 'Un momento…';
+/* ---------- Inicio de sesión con retroalimentación animada ---------- */
+const lf = $('#login-form');
+const reEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+let loginExitoso = false, loginEnCurso = false, intentosFallidos = [], bloqueoHasta = 0, bloqueoTimer = null, alertaTimer = null;
+
+// Vibración: nativa en la app, del navegador en la web (si existe)
+function vibrar(tipo) {
+  try {
+    if (NATIVO && PLUG.Haptics) return PLUG.Haptics.notification({ type: { error: 'ERROR', exito: 'SUCCESS', aviso: 'WARNING' }[tipo] || 'WARNING' });
+    navigator.vibrate?.(tipo === 'error' ? [40, 60, 40] : 25);
+  } catch { /* sin vibración */ }
+}
+const reiniciarAnim = (el, clase) => { if (!el) return; el.classList.remove(clase); void el.offsetWidth; el.classList.add(clase); };
+
+// Marca un campo con error (texto vacío + soloMarcar = solo el borde rojo)
+function errorCampo(nombre, texto, soloMarcar = false) {
+  const campo = lf.querySelector(`[data-campo="${nombre}"]`); if (!campo) return;
+  const input = campo.querySelector('input'), msg = campo.querySelector('.campo-error'), mal = !!texto || soloMarcar;
+  campo.classList.toggle('invalido', mal);
+  input.setAttribute('aria-invalid', mal ? 'true' : 'false');
+  msg.innerHTML = texto ? `<i class="bi bi-exclamation-circle" aria-hidden="true"></i> ${esc(texto)}` : '';
+  if (mal) reiniciarAnim(campo.querySelector('.input-ic'), 'sacudir');
+}
+function limpiarErrores() { ['email', 'password'].forEach(c => errorCampo(c, '')); ocultarAlerta(); }
+
+function mostrarAlerta({ tipo = 'error', icono, titulo, texto, accion }) {
+  const a = $('#login-alerta');
+  clearTimeout(alertaTimer);   // si el aviso anterior se estaba ocultando, que no oculte este
+  a.className = `alerta alerta-${tipo}`;
+  a.innerHTML = `<i class="bi bi-${icono} alerta-ic" aria-hidden="true"></i>
+    <div class="min-w-0 flex-1"><b>${esc(titulo)}</b>${texto ? `<p>${esc(texto)}</p>` : ''}
+    ${accion ? `<button type="button" class="alerta-accion" data-alerta-accion>${esc(accion.texto)} <i class="bi bi-arrow-right" aria-hidden="true"></i></button>` : ''}</div>
+    <button type="button" class="alerta-cerrar" aria-label="Cerrar aviso"><i class="bi bi-x-lg" aria-hidden="true"></i></button>`;
+  a.hidden = false;
+  reiniciarAnim(a, 'entra-alerta');
+  a.querySelector('.alerta-cerrar').onclick = ocultarAlerta;
+  if (accion) a.querySelector('[data-alerta-accion]').onclick = () => accion.fn();
+  if (tipo === 'error') { reiniciarAnim(lf, 'sacudir'); vibrar('error'); }
+  else if (tipo === 'exito') vibrar('exito');
+  else vibrar('aviso');
+}
+function ocultarAlerta() {
+  const a = $('#login-alerta'); if (a.hidden) return;
+  if (sinMovimiento()) { a.hidden = true; return; }
+  a.classList.add('sale-alerta');
+  clearTimeout(alertaTimer);
+  alertaTimer = setTimeout(() => { a.hidden = true; a.classList.remove('sale-alerta'); }, 200);
+}
+
+function estadoBoton(btn, estado, texto) {
+  if (!btn) return;
+  btn.classList.remove('cargando', 'exito');
+  btn.removeAttribute('aria-busy');
+  if (!btn.dataset.original) btn.dataset.original = btn.querySelector('.btn-txt').innerHTML;
+  const txt = btn.querySelector('.btn-txt');
+  if (estado === 'cargando') { btn.classList.add('cargando'); btn.setAttribute('aria-busy', 'true'); txt.innerHTML = `<span class="spinner" aria-hidden="true"></span>${esc(texto || 'Un momento…')}`; }
+  else if (estado === 'exito') { btn.classList.add('exito'); txt.innerHTML = `<i class="bi bi-check-circle-fill" aria-hidden="true"></i>${esc(texto || 'Listo')}`; }
+  else txt.innerHTML = btn.dataset.original;
+}
+function bloquearForm(si) { lf.querySelectorAll('input, button').forEach(el => { if (!el.classList.contains('alerta-cerrar')) el.disabled = si; }); }
+
+// Traduce los errores de Supabase a mensajes claros
+function errorAuth(err) {
+  const code = String(err?.code || ''), msg = String(err?.message || ''), st = err?.status;
+  if (!navigator.onLine || st === 0 || /Failed to fetch|NetworkError|Load failed|fetch/i.test(msg))
+    return { tipo: 'error', icono: 'wifi-off', titulo: 'Sin conexión', texto: 'No pudimos conectar. Revisa tu internet e inténtalo de nuevo.' };
+  if (code === 'invalid_credentials' || /Invalid login credentials/i.test(msg))
+    return { tipo: 'error', icono: 'shield-exclamation', titulo: 'Datos incorrectos', texto: 'El correo o la contraseña no coinciden. Revisa e inténtalo de nuevo.', campos: ['email', 'password'], accion: { texto: '¿Olvidaste tu contraseña?', fn: () => enviarLogin('reset') } };
+  if (code === 'email_not_confirmed' || /Email not confirmed/i.test(msg))
+    return { tipo: 'aviso', icono: 'envelope-exclamation', titulo: 'Falta confirmar tu correo', texto: 'Abre el enlace que te enviamos al crear la cuenta y vuelve a entrar.', accion: { texto: 'Reenviar correo', fn: reenviarConfirmacion } };
+  if (code === 'user_already_exists' || code === 'email_exists' || /already registered|already exists/i.test(msg))
+    return { tipo: 'aviso', icono: 'person-check', titulo: 'Ya tienes cuenta', texto: 'Ese correo ya está registrado. Entra con tu contraseña.', accion: { texto: 'Recuperar contraseña', fn: () => enviarLogin('reset') } };
+  if (code === 'weak_password' || /Password should|weak/i.test(msg))
+    return { tipo: 'error', icono: 'key', titulo: 'Contraseña muy débil', texto: 'Usa al menos 8 caracteres y combina letras y números.', campos: ['password'] };
+  if (code === 'email_address_invalid' || code === 'validation_failed' || /invalid.*email|Unable to validate email/i.test(msg))
+    return { tipo: 'error', icono: 'envelope-exclamation', titulo: 'Correo no válido', texto: 'Revisa que tu correo esté bien escrito.', campos: ['email'] };
+  if (code.startsWith('over_') || /rate limit|only request this after|too many/i.test(msg)) {
+    const seg = msg.match(/after (\d+) seconds?/i)?.[1];
+    return { tipo: 'aviso', icono: 'hourglass-split', titulo: 'Demasiados intentos', texto: seg ? `Por seguridad, espera ${seg} segundos e inténtalo de nuevo.` : 'Por seguridad, espera unos minutos e inténtalo de nuevo.' };
+  }
+  if (code === 'signup_disabled' || /Signups not allowed/i.test(msg))
+    return { tipo: 'aviso', icono: 'person-x', titulo: 'Registro cerrado', texto: 'Por ahora no se pueden crear cuentas nuevas.' };
+  return { tipo: 'error', icono: 'exclamation-octagon', titulo: 'Algo salió mal', texto: msg || 'Inténtalo de nuevo en un momento.' };
+}
+
+// Freno local: tras 5 intentos fallidos en 2 minutos, espera 30 segundos
+function registrarFallo() {
+  const ahora = Date.now();
+  intentosFallidos = intentosFallidos.filter(t => ahora - t < 120000).concat(ahora);
+  if (intentosFallidos.length >= 5) { bloqueoHasta = ahora + 30000; intentosFallidos = []; cuentaRegresiva(); return true; }
+  return false;
+}
+function cuentaRegresiva() {
+  clearInterval(bloqueoTimer);
+  const btn = $('#btn-entrar');
+  const tick = () => {
+    const s = Math.ceil((bloqueoHasta - Date.now()) / 1000);
+    if (s <= 0) { clearInterval(bloqueoTimer); bloquearForm(false); estadoBoton(btn); ocultarAlerta(); return; }
+    bloquearForm(true); btn.querySelector('.btn-txt').innerHTML = `<i class="bi bi-hourglass-split" aria-hidden="true"></i>Espera ${s} s`;
+  };
+  mostrarAlerta({ tipo: 'aviso', icono: 'shield-lock', titulo: 'Demasiados intentos', texto: 'Por seguridad, espera 30 segundos antes de intentar de nuevo.' });
+  tick(); bloqueoTimer = setInterval(tick, 1000);
+}
+
+function validarLogin(modo) {
+  const email = lf.elements.email.value.trim(), pass = lf.elements.password.value;
+  let ok = true;
+  if (!email) { errorCampo('email', 'Escribe tu correo'); ok = false; }
+  else if (!reEmail.test(email)) { errorCampo('email', 'Ese correo no parece válido (ej. nombre@gmail.com)'); ok = false; }
+  if (modo !== 'reset') {
+    if (!pass) { errorCampo('password', 'Escribe tu contraseña'); ok = false; }
+    else if (modo === 'signup' && pass.length < 8) { errorCampo('password', 'Para crear tu cuenta usa al menos 8 caracteres'); ok = false; }
+  }
+  if (!ok) { reiniciarAnim(lf, 'sacudir'); vibrar('error'); lf.querySelector('.invalido input')?.focus(); }
+  return ok;
+}
+
+async function reenviarConfirmacion() {
+  const email = lf.elements.email.value.trim();
+  if (!reEmail.test(email)) return errorCampo('email', 'Escribe tu correo para reenviarte el enlace');
+  const btn = $('#login-alerta [data-alerta-accion]'); if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner" aria-hidden="true"></span>Enviando…'; }
+  const { error } = await sb.auth.resend({ type: 'signup', email, options: { emailRedirectTo: SITIO } }).catch(e => ({ error: e }));
+  if (error) return mostrarAlerta(errorAuth(error));
+  mostrarAlerta({ tipo: 'exito', icono: 'send-check', titulo: 'Correo reenviado', texto: `Revisa tu bandeja de ${email} (y la carpeta de spam).` });
+}
+
+async function enviarLogin(modo = 'login') {
+  if (Date.now() < bloqueoHasta) return;
+  limpiarErrores();
+  if (!validarLogin(modo)) return;
+  const email = lf.elements.email.value.trim(), password = lf.elements.password.value;
+  const btn = modo === 'signup' ? $('#btn-crear') : modo === 'reset' ? null : $('#btn-entrar');
+  estadoBoton(btn, 'cargando', { login: 'Entrando…', signup: 'Creando cuenta…' }[modo]);
+  if (modo === 'reset') $('#btn-reset').textContent = 'Enviando…';
+  bloquearForm(true);
+  loginEnCurso = modo !== 'reset';
   try {
     if (modo === 'signup') {
-      if (String(password).length < 8) { msg.textContent = 'Usa una contraseña de al menos 8 caracteres.'; return; }
       const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITIO } });
       if (error) throw error;
-      msg.textContent = data.session ? '' : 'Cuenta creada. Revisa tu correo para confirmarla y luego entra.';
+      if (data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) throw { code: 'user_already_exists' };
+      if (data.session) { loginExitoso = true; estadoBoton(btn, 'exito', '¡Cuenta creada!'); lf.classList.add('exito'); vibrar('exito'); return; }
+      loginEnCurso = false;
+      estadoBoton(btn); bloquearForm(false);
+      lf.elements.password.value = '';
+      mostrarAlerta({ tipo: 'exito', icono: 'envelope-check', titulo: '¡Cuenta creada!', texto: `Te enviamos un correo a ${email}. Ábrelo para confirmar tu cuenta y luego entra aquí.` });
     } else if (modo === 'reset') {
-      if (!email) { msg.textContent = 'Escribe tu correo primero.'; return; }
       const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITIO });
       if (error) throw error;
-      msg.textContent = 'Te enviamos un correo para cambiar tu contraseña.';
+      bloquearForm(false);
+      mostrarAlerta({ tipo: 'info', icono: 'envelope-paper', titulo: 'Revisa tu correo', texto: `Si existe una cuenta con ${email}, te llegará un enlace para cambiar tu contraseña.` });
     } else {
       const { error } = await sb.auth.signInWithPassword({ email, password });
       if (error) throw error;
-      msg.textContent = '';
+      loginExitoso = true; intentosFallidos = [];
+      estadoBoton(btn, 'exito', '¡Bienvenido!'); lf.classList.add('exito'); vibrar('exito');
     }
-  } catch (err) { msg.textContent = err.message === 'Invalid login credentials' ? 'Correo o contraseña incorrectos.' : err.message; }
+  } catch (err) {
+    loginEnCurso = false;
+    estadoBoton(btn); bloquearForm(false);
+    const info = errorAuth(err);
+    if (modo === 'login' && info.titulo === 'Datos incorrectos' && registrarFallo()) return;
+    if (info.campos?.length > 1) { errorCampo('email', '', true); errorCampo('password', 'Revisa tu correo y contraseña'); }
+    else (info.campos || []).forEach(c => errorCampo(c, info.texto));
+    mostrarAlerta(info);
+    if (info.campos?.includes('password')) { lf.elements.password.select(); lf.elements.password.focus(); }
+  } finally {
+    $('#btn-reset').textContent = 'Olvidé mi contraseña';
+  }
+}
+
+lf.addEventListener('submit', e => { e.preventDefault(); enviarLogin(e.submitter?.dataset.modo || 'login'); });
+// Al escribir se quita el error de ese campo
+lf.addEventListener('input', e => { const c = e.target.closest('[data-campo]'); if (c?.classList.contains('invalido')) errorCampo(c.dataset.campo, ''); });
+// Correo mal escrito: avisar al salir del campo
+lf.elements.email.addEventListener('blur', e => { const v = e.target.value.trim(); if (v && !reEmail.test(v)) errorCampo('email', 'Ese correo no parece válido (ej. nombre@gmail.com)'); });
+// Mostrar / ocultar contraseña
+lf.querySelector('.ver-pass').addEventListener('click', e => {
+  const b = e.currentTarget, inp = lf.elements.password, ver = inp.type === 'password';
+  inp.type = ver ? 'text' : 'password';
+  b.setAttribute('aria-pressed', String(ver)); b.setAttribute('aria-label', ver ? 'Ocultar contraseña' : 'Mostrar contraseña');
+  b.innerHTML = `<i class="bi bi-${ver ? 'eye-slash' : 'eye'}"></i>`; reiniciarAnim(b, 'pulso');
+  inp.focus({ preventScroll: true });
 });
+// Aviso de mayúsculas activadas (teclado físico)
+const revisarMayus = e => { if (e.getModifierState) $('#aviso-mayus').hidden = !e.getModifierState('CapsLock'); };
+lf.elements.password.addEventListener('keyup', revisarMayus);
+lf.elements.password.addEventListener('keydown', revisarMayus);
+lf.elements.password.addEventListener('blur', () => { $('#aviso-mayus').hidden = true; });
+
 $('#btn-logout').addEventListener('click', async () => { await sb.auth.signOut(); });
 $('#btn-ejemplo').addEventListener('click', cargarEjemplo);
 
@@ -1794,7 +1966,8 @@ async function boot() {
       });
       if (nueva) { const { error } = await sb.auth.updateUser({ password: nueva }); toast(error ? error.message : 'Contraseña actualizada'); }
     }, 0);
-    if (ev === 'SIGNED_IN' && !usuario) { usuario = s.user; setTimeout(mostrarApp, 0); }
+    // Si vienes del formulario, deja ver la animación de éxito antes de entrar
+    if (ev === 'SIGNED_IN' && !usuario) { usuario = s.user; const espera = loginEnCurso && !sinMovimiento() ? 850 : 0; loginEnCurso = false; setTimeout(mostrarApp, espera); }
     if (ev === 'SIGNED_OUT') { cancelarRecordatorios(); ultimoConteo = -1; usuario = null; ME = null; TABLAS.forEach(t => (R[t] = [])); urlCache.clear(); mostrarLogin(); }
   });
   // Al volver a la app, trae lo que hayan registrado tus compañeros
