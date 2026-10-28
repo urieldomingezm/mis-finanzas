@@ -31,8 +31,9 @@
   --nav-h: 64px; --top-h: 60px;
   color-scheme: light dark;
 }
+/* Oscuro: lo pide el sistema (si no elegiste "claro") o lo elegiste con el botón del encabezado */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0c1310; --surface: #141c17; --surface-2: #1b2520; --text: #e6ede8; --muted: #95a49b;
     --line: #253129; --brand: #4cc28d; --brand-ink: #06130c; --brand-soft: #15382a;
     --hero: #134430; --hero-ink: #eef6f1; --maiz: #f2b33d;
@@ -41,6 +42,16 @@
     --shadow: 0 10px 30px rgb(0 0 0 / .35);
   }
 }
+:root[data-theme="dark"] {
+    --bg: #0c1310; --surface: #141c17; --surface-2: #1b2520; --text: #e6ede8; --muted: #95a49b;
+    --line: #253129; --brand: #4cc28d; --brand-ink: #06130c; --brand-soft: #15382a;
+    --hero: #134430; --hero-ink: #eef6f1; --maiz: #f2b33d;
+    --ok: #4cc28d; --bad: #f08a5d; --warn: #e2b14d; --info: #6eaade; --c-evento: #b38ae0;
+    --c1: #4cc28d; --c2: #f08a5d; --c3: #6eaade; --c4: #e2b14d; --c5: #b38ae0; --c6: #7d8c84;
+    --shadow: 0 10px 30px rgb(0 0 0 / .35);
+}
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
 
 /* Colores disponibles como clases de Tailwind: bg-surface, text-muted, border-line, text-brand… */
 @theme inline {
@@ -790,3 +801,14 @@ input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer
 div.item[role=button] { cursor: pointer; }
 div.item[role=button]:focus-visible { outline: 2px solid var(--brand); outline-offset: -2px; }
 .pago-desglose span.comp { background: transparent; border: 1px dashed var(--line); }
+
+/* Encabezado en celulares angostos: el nombre en un renglón y los botones un poco más juntos */
+.brand span { white-space: nowrap; }
+@media (width < 25rem) {
+  #topbar > .flex { gap: .3rem; }
+  #topbar .icon-btn.ayuda { width: 2.1rem; height: 2.1rem; }
+  #topbar .btn.small { padding-left: .55rem; padding-right: .55rem; }
+  #demo-badge { padding-left: .45rem; padding-right: .45rem; }
+}
+@media (width < 23.5rem) { .brand span { display: none; } }
+@media (width < 26rem) { #topbar:has(#demo-badge:not([hidden])) .brand span { display: none; } }

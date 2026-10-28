@@ -2246,7 +2246,24 @@ async function boot() {
   // Al volver a la app, trae lo que hayan registrado tus compañeros
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && usuario && !Swal.isVisible()) refrescar(); });
 }
-matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', () => !$('#app').hidden && render());
+// Tema claro / oscuro: botón del encabezado (tema.js ya aplicó la elección guardada al cargar)
+const temaSistema = matchMedia('(prefers-color-scheme: dark)');
+const temaOscuro = () => (document.documentElement.dataset.theme || (temaSistema.matches ? 'dark' : 'light')) === 'dark';
+function pintarBotonTema() {
+  const b = $('#btn-tema'); if (!b) return;
+  const txt = temaOscuro() ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro';
+  b.title = txt; b.setAttribute('aria-label', txt);
+  b.innerHTML = `<i class="bi bi-${temaOscuro() ? 'sun' : 'moon-stars'}" aria-hidden="true"></i>`;
+}
+$('#btn-tema')?.addEventListener('click', () => {
+  const nuevo = temaOscuro() ? 'light' : 'dark';
+  document.documentElement.dataset.theme = nuevo;
+  try { localStorage.setItem('mf-tema', nuevo); } catch { /* sin almacenamiento */ }
+  pintarBotonTema();
+  if (!$('#app').hidden) render(); // las gráficas toman los colores nuevos
+});
+pintarBotonTema();
+temaSistema.addEventListener?.('change', () => { pintarBotonTema(); if (!document.documentElement.dataset.theme && !$('#app').hidden) render(); });
 boot().catch(err => {
   console.error(err);
   ocultarCargador();
