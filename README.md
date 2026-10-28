@@ -95,7 +95,11 @@ Abre tu link en el celular:
 2. Uno entra a **Grupo → Crear grupo** (p. ej. “Depa Roma”) y toca **Invitar**: se comparte por WhatsApp un mensaje con el link y un **código de 6 letras**.
 3. Los demás entran a **Grupo → Unirme con código**.
 4. Al registrar un gasto eliges **Compartir con: Solo yo / Depa Roma**, quién lo pagó y entre quiénes se divide. En tus finanzas personales solo cuenta **tu parte**.
-5. En **Grupo → Para quedar a mano** aparece quién le debe a quién. Al transferir, toca **Registrar pago** y adjunta el comprobante.
+5. En **Grupo → Para quedar a mano** aparece quién le debe a quién y de qué conceptos (ej. *Hamburguesa $140 · Almohada $50*). Toca **Pagar** y elige:
+   - **Todo junto**, o marca solo algunos conceptos;
+   - cambia el monto si es un **abono** (pago parcial): lo que falte queda pendiente en ese concepto;
+   - adjunta **uno o varios comprobantes** (toca *Agregar otra evidencia* para sumar más).
+   Cada gasto compartido muestra su estado: *Debes $X* con botón **Pagar esto**, *Te falta $X*, *Tu parte ya está pagada*, *Te deben $X* o *Compensado* (cuando las deudas entre ustedes se cancelan entre sí).
 6. Para la renta o el internet, da de alta un **gasto fijo compartido**; cuando se pague, toca **Ya se pagó** y queda registrado y dividido.
 
 **Qué ve cada quien**

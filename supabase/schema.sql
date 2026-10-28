@@ -145,9 +145,14 @@ create table if not exists public.liquidaciones (
   monto       numeric(12,2) not null check (monto > 0),
   fecha       date not null default current_date,
   notas       text,
+  cubre       uuid[],          -- gastos compartidos que salda este pago (pago por concepto)
   created_at  timestamptz not null default now(),
   check (de <> para)
 );
+-- Bases creadas antes de la 1.5: agrega la columna "cubre"
+alter table public.liquidaciones add column if not exists cubre uuid[];
+alter table public.liquidaciones drop constraint if exists liquidaciones_cubre_max;
+alter table public.liquidaciones add constraint liquidaciones_cubre_max check (cubre is null or cardinality(cubre) <= 100);
 
 -- ---------- Evidencias (fotos de tickets, comprobantes, PDF) ----------
 create table if not exists public.adjuntos (

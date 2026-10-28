@@ -306,10 +306,11 @@ const FORMS = {
   liquidaciones: { nuevo: 'Pago entre compañeros', fields: [
     { k: 'de', l: '¿Quién pagó?', t: 'miembro' },
     { k: 'para', l: '¿A quién le pagó?', t: 'miembro' },
-    num('monto', 'Monto', { req: 1 }),
+    { k: 'cubre', l: '¿Qué se está pagando?', t: 'cubre', full: true },
+    num('monto', 'Monto', { req: 1, hint: 'Puedes pagar todo junto, por concepto o solo una parte (abono).' }),
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
-    notas, { ...ADJ, l: 'Comprobante de transferencia (opcional)' }],
-    pasos: [{ t: null, k: ['de', 'para', 'monto', 'fecha', 'notas', '_adjuntos'] }] },
+    notas, { ...ADJ, l: 'Comprobantes de transferencia (opcional, uno o varios)' }],
+    pasos: [{ t: null, k: ['de', 'para', 'cubre', 'monto', 'fecha', 'notas', '_adjuntos'] }] },
   abono: { nuevo: 'Registrar abono', fields: [
     num('monto', 'Monto del abono', { req: 1 }),
     { k: 'fecha', l: 'Fecha', t: 'date', req: 1, def: today },
@@ -371,9 +372,10 @@ function campoBase(f, v) {
     }
     case 'pagador': return `<label data-solo-grupo>${f.l}<select name="pagado_por" data-v="${esc(v || ME)}"></select></label>`;
     case 'participantes': return `<fieldset data-solo-grupo class="chips-field" data-v="${esc(JSON.stringify(v || []))}"><legend>${f.l}</legend><div class="chips"></div><small class="muted" data-parte></small></fieldset>`;
+    case 'cubre': return `<fieldset class="cubre-field" data-cubre data-v="${esc(JSON.stringify(v || []))}" hidden><legend>${f.l}</legend><div class="cubre-lista"></div><small class="cubre-res" data-cubre-res></small></fieldset>`;
     case 'miembro': return `<label>${f.l}<select name="${f.k}" data-miembro data-v="${esc(v || '')}" required></select></label>`;
     case 'files': return `<div class="adj-field"><span class="lbl">${f.l}</span><div class="thumbs" id="adj-exist"></div><div class="thumbs" id="adj-nuevos"></div>
-      <label class="file-btn"><i class="bi bi-camera" aria-hidden="true"></i><span><b>Tomar foto o elegir archivo</b><small>Imagen o PDF, se comprime sola</small></span><input type="file" name="_adjuntos" multiple accept="image/*,application/pdf" hidden></label></div>`;
+      <label class="file-btn"><i class="bi bi-camera" aria-hidden="true"></i><span><b>Tomar foto o elegir archivo</b><small>Imagen o PDF, se comprime sola · puedes agregar varias</small></span><input type="file" name="_adjuntos" multiple accept="image/*,application/pdf" hidden></label></div>`;
     default: {
       const extra = f.t === 'number' ? `step="${f.step || '0.01'}" min="0" ${f.max ? `max="${f.max}"` : ''} inputmode="decimal"` : '';
       const val = f.t === 'time' && v ? String(v).slice(0, 5) : v;
@@ -427,7 +429,7 @@ function hidratar(root) {
 function recolectar(def) {
   const form = fm(), obj = {};
   def.fields.forEach(f => {
-    if (['files', 'pagador', 'participantes'].includes(f.t)) return;
+    if (['files', 'pagador', 'participantes', 'cubre'].includes(f.t)) return;
     const el = form.elements[f.k]; if (!el) return;
     if (f.t === 'check') obj[f.k] = el.checked;
     else { const v = String(el.value).trim(); obj[f.k] = v === '' ? null : (f.t === 'number' ? Number(v) : v); }
@@ -437,6 +439,17 @@ function recolectar(def) {
   if (def.fields.some(f => f.t === 'participantes')) {
     const ch = [...form.querySelectorAll('.chips-field input:checked')].map(i => i.value);
     obj.participantes = gid ? (ch.length ? ch : miembrosDe(gid).map(m => m.user_id)) : null;
+  }
+  const fc = form.querySelector('[data-cubre]');
+  if (fc) {
+    const ids = fc.hidden ? [] : [...fc.querySelectorAll('input[data-item]:checked')].map(i => i.value);
+    obj.cubre = ids.length ? ids : null;
+    // Sin nota: se escribe sola con lo que se pagó
+    if (ids.length && !obj.notas) {
+      const nom = ids.map(id => rawRow('gastos', id)?.concepto).filter(Boolean);
+      const abono = Number(obj.monto) + 0.009 < Number(fc.dataset.total || 0);
+      obj.notas = ((abono ? 'Abono a: ' : 'Pago de: ') + nom.join(', ')).slice(0, 300);
+    }
   }
   return obj;
 }
@@ -523,6 +536,15 @@ function abrirForm(tipo, row = null, extra = {}) {
     didOpen: () => {
       const form = fm();
       actualizarGrupoCampos();
+      pintarCubre();
+      c.nuevos = c.nuevos || [];
+      const pintarNuevos = () => {
+        const cont = form.querySelector('#adj-nuevos'); if (!cont) return;
+        cont.innerHTML = c.nuevos.map((f, i) => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>'}<button type="button" class="x" data-quitar-nuevo="${i}" aria-label="Quitar ${esc(f.name)}" title="Quitar"><i class="bi bi-x-lg" aria-hidden="true"></i></button></div>`).join('');
+        const lbl = form.querySelector('.file-btn b'); if (lbl) lbl.textContent = c.nuevos.length ? 'Agregar otra evidencia' : 'Tomar foto o elegir archivo';
+      };
+      pintarNuevos();
+      form.addEventListener('click', e => { const q = e.target.closest('[data-quitar-nuevo]'); if (q) { c.nuevos.splice(Number(q.dataset.quitarNuevo), 1); pintarNuevos(); } });
       const ex = form.querySelector('#adj-exist'); if (ex && row) pintarAdjuntos(ex, adjuntosDe(tipo, row.id), !ro);
       if (ro) {
         form.querySelectorAll('input,select,textarea').forEach(el => { el.disabled = true; });
@@ -543,9 +565,16 @@ function abrirForm(tipo, row = null, extra = {}) {
       form.addEventListener('change', e => {
         if (e.target.name === 'grupo_id') actualizarGrupoCampos(true);
         if (e.target.closest('.chips-field')) actualizarParte();
-        if (e.target.name === '_adjuntos') form.querySelector('#adj-nuevos').innerHTML = [...e.target.files].map(f => `<div class="thumb nuevo">${f.type.startsWith('image/') ? `<img src="${URL.createObjectURL(f)}" alt="">` : '<span class="pdf"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i></span>'}</div>`).join('');
+        if (e.target.name === 'de' || e.target.name === 'para') pintarCubre(true);
+        if (e.target.matches('[data-todo]')) { e.target.closest('[data-cubre]').querySelectorAll('input[data-item]').forEach(i => { i.checked = e.target.checked; }); cambioCubre(); }
+        else if (e.target.matches('[data-item]')) cambioCubre();
+        if (e.target.name === '_adjuntos') {   // se acumulan: puedes agregar una, luego otra
+          const nuevos = [...e.target.files].filter(f => !c.nuevos.some(x => x.name === f.name && x.size === f.size));
+          c.nuevos.push(...nuevos); if (c.nuevos.length > 10) c.nuevos.length = 10;
+          e.target.value = ''; pintarNuevos();
+        }
       });
-      form.addEventListener('input', e => { if (e.target.name === 'monto') actualizarParte(); });
+      form.addEventListener('input', e => { if (e.target.name === 'monto') { actualizarParte(); resumenCubre(); } });
       form.addEventListener('focusin', e => {
         if (!(NATIVO || matchMedia('(width < 40rem)').matches) || !e.target.matches('input, select, textarea')) return;
         setTimeout(() => e.target.scrollIntoView({ block: 'center', behavior: 'smooth' }), 320);
@@ -568,7 +597,7 @@ function abrirForm(tipo, row = null, extra = {}) {
         if (obj.de === obj.para) { Swal.showValidationMessage('Elige dos personas distintas'); return false; }
         if (!DEMO && obj.de !== ME && obj.para !== ME) { Swal.showValidationMessage('Solo puedes registrar pagos donde tú pagas o recibes'); return false; }
       }
-      const files = [...(fm().elements._adjuntos?.files || [])];
+      const files = [...(c.nuevos || [])];
       try { await guardar(c, obj, files); return true; }
       catch (err) { Swal.showValidationMessage('No se pudo guardar: ' + (err.message || err)); return false; }
     }
@@ -732,6 +761,88 @@ function balances(gid) {
   });
   return bal;
 }
+// Gastos compartidos que "de" le debe a "para", con cuánto falta de cada uno.
+// 1) Cuentan los pagos que dicen qué cubren; 2) el resto de los pagos va a lo más antiguo;
+// 3) lo que "para" a su vez le debe a "de" se compensa (así cuadra con el saldo de "a mano").
+function deudaBase(gid, de, para, excluir) {
+  const items = R.gastos.filter(g => g.grupo_id === gid && (g.pagado_por || g.user_id) === para && participantesDe(g).includes(de))
+    .map(g => ({ g, id: g.id, parte: Math.round((Number(g.monto) || 0) / participantesDe(g).length * 100) / 100, pagado: 0, compensado: 0 }))
+    .sort((a, b) => (a.g.fecha || '').localeCompare(b.g.fecha || '') || (a.g.created_at || '').localeCompare(b.g.created_at || ''));
+  const pagos = R.liquidaciones.filter(l => l.grupo_id === gid && l.de === de && l.para === para && l.id !== excluir)
+    .map(l => ({ l, resto: Number(l.monto) || 0 }));
+  pagos.forEach(p => (Array.isArray(p.l.cubre) ? p.l.cubre : []).forEach(id => {
+    const i = items.find(x => x.id === id); if (!i || p.resto <= 0) return;
+    const t = Math.min(p.resto, i.parte - i.pagado); i.pagado += t; p.resto -= t;
+  }));
+  let bolsa = pagos.reduce((a, p) => a + p.resto, 0);
+  items.forEach(i => { const t = Math.min(bolsa, i.parte - i.pagado); if (t > 0) { i.pagado += t; bolsa -= t; } });
+  return { items, extra: bolsa };   // extra = pagado de más (cuenta como saldo a favor de "de")
+}
+function pendientesEntre(gid, de, para, excluir = null) {
+  if (!gid || !de || !para || de === para) return { items: [], pendientes: [], total: 0, compensado: 0 };
+  const ida = deudaBase(gid, de, para, excluir), vuelta = deudaBase(gid, para, de, excluir);
+  const debe = ida.items.reduce((a, i) => a + i.parte - i.pagado, 0), leDeben = vuelta.items.reduce((a, i) => a + i.parte - i.pagado, 0);
+  let comp = Math.min(debe, leDeben + ida.extra);
+  const compensado = Math.round(comp * 100) / 100;
+  ida.items.forEach(i => { const t = Math.min(comp, i.parte - i.pagado); if (t > 0) { i.compensado = t; comp -= t; } });
+  ida.items.forEach(i => { i.resta = Math.max(0, Math.round((i.parte - i.pagado - i.compensado) * 100) / 100); });
+  const pendientes = ida.items.filter(i => i.resta > 0.009);
+  return { items: ida.items, pendientes, total: Math.round(pendientes.reduce((a, i) => a + i.resta, 0) * 100) / 100, compensado };
+}
+// Estado de una parte: cuánto falta de lo que "u" debe de ese gasto
+function restaDe(g, u) {
+  const quien = g.pagado_por || g.user_id;
+  if (!g.grupo_id || u === quien || !participantesDe(g).includes(u)) return null;
+  return pendientesEntre(g.grupo_id, u, quien).items.find(i => i.id === g.id) || null;
+}
+
+// Lista de "¿Qué se está pagando?" en el formulario de pago entre compañeros
+function pintarCubre(reset = false) {
+  const form = fm(), fc = form?.querySelector('[data-cubre]'); if (!fc) return;
+  const gid = grupoDelForm(), de = form.elements.de?.value, para = form.elements.para?.value;
+  const row = ctx?.row, ro = !!row && !puedeEditar('liquidaciones', row);
+  let marcados = null;
+  if (!reset) { try { const v = JSON.parse(fc.dataset.v || '[]'); if (v.length) marcados = v; } catch { /* nada */ } }
+  if (row && !reset && !marcados) marcados = [];   // pago viejo sin conceptos: no marcar nada
+  const { pendientes } = pendientesEntre(gid, de, para, row?.id);
+  // En modo detalle solo se listan los conceptos que cubrió
+  const lista = ro ? pendientesEntre(gid, de, para, row.id).items.filter(i => (row.cubre || []).includes(i.id)) : pendientes;
+  fc.hidden = !lista.length;
+  if (!lista.length) { fc.dataset.total = '0'; return; }
+  const sel = marcados || lista.map(i => i.id);
+  fc.querySelector('legend').textContent = ro ? 'Lo que se pagó' : `¿Qué se está pagando? · ${aliasDe(de, gid) === 'Tú' ? 'le debes' : 'debe'} ${money(lista.reduce((a, i) => a + i.resta, 0))}`;
+  fc.querySelector('.cubre-lista').innerHTML = (lista.length > 1 && !ro ? `<label class="cubre-item cubre-todo"><input type="checkbox" data-todo><span class="main"><b>Todo junto</b></span><span class="amt">${money(lista.reduce((a, i) => a + i.resta, 0))}</span></label>` : '') +
+    lista.map(i => `<label class="cubre-item"><input type="checkbox" data-item value="${i.id}" ${sel.includes(i.id) ? 'checked' : ''}>
+      <span class="main"><b>${esc(i.g.concepto)}</b><small>${fCorta(i.g.fecha)}${i.pagado > 0.009 ? ` · ya abonó ${money(i.pagado)} de ${money(i.parte)}` : ''}</small></span>
+      <span class="amt">${money(i.resta)}</span></label>`).join('');
+  fc.dataset.v = '';
+  cambioCubre(!row || reset);
+}
+function cambioCubre(ponerMonto = true) {
+  const form = fm(), fc = form?.querySelector('[data-cubre]'); if (!fc || fc.hidden) return;
+  const items = [...fc.querySelectorAll('input[data-item]')], marcados = items.filter(i => i.checked);
+  const restas = new Map(pendientesEntre(grupoDelForm(), form.elements.de?.value, form.elements.para?.value, ctx?.row?.id).items.map(i => [i.id, i.resta]));
+  const total = Math.round(marcados.reduce((a, i) => a + (restas.get(i.value) || 0), 0) * 100) / 100;
+  fc.dataset.total = String(total);
+  const todo = fc.querySelector('[data-todo]');
+  if (todo) { todo.checked = marcados.length === items.length; todo.indeterminate = marcados.length > 0 && marcados.length < items.length; }
+  let poner = total;
+  // Primera vez desde "Para quedar a mano": si lo sugerido es menor (ya se descontó lo que te deben), respetarlo
+  if (!fc.dataset.listo && ctx?.pre?.monto && ctx.pre.monto < total && marcados.length === items.length) poner = ctx.pre.monto;
+  fc.dataset.listo = '1';
+  if (ponerMonto && marcados.length) form.elements.monto.value = String(Math.round(poner * 100) / 100);
+  resumenCubre();
+}
+function resumenCubre() {
+  const form = fm(), fc = form?.querySelector('[data-cubre]'), el = fc?.querySelector('[data-cubre-res]'); if (!el || fc.hidden) return;
+  const total = Number(fc.dataset.total || 0), monto = Number(form.elements.monto?.value) || 0, n = fc.querySelectorAll('input[data-item]:checked').length;
+  el.className = 'cubre-res';
+  if (!n) { el.innerHTML = '<i class="bi bi-info-circle" aria-hidden="true"></i> Sin marcar: el pago se aplica a lo más antiguo.'; return; }
+  if (monto + 0.009 < total) { el.classList.add('parcial'); el.innerHTML = `<i class="bi bi-pie-chart" aria-hidden="true"></i> Abono parcial: quedan <b>${money(total - monto)}</b> pendientes de lo marcado.`; }
+  else if (monto > total + 0.009) { el.classList.add('extra'); el.innerHTML = `<i class="bi bi-plus-circle" aria-hidden="true"></i> Pagas ${money(monto - total)} de más: se aplica a lo siguiente que se deba.`; }
+  else { el.classList.add('ok'); el.innerHTML = `<i class="bi bi-check2-circle" aria-hidden="true"></i> Con esto ${n > 1 ? `quedan saldados ${n} conceptos` : 'queda saldado'}.`; }
+}
+
 // Mínimo de pagos para quedar a mano
 function simplificar(bal) {
   const cred = [], deb = [];
@@ -1173,7 +1284,8 @@ function vGrupo() {
       <h2>Para quedar a mano</h2>
       <div class="list" style="margin-top:12px">${pagos.length ? pagos.map(p => `
         <div class="pago-sug"><div><b>${esc(aliasDe(p.de, g.id))}</b> <i class="bi bi-arrow-right text-muted" aria-hidden="true"></i> <b>${esc(aliasDe(p.para, g.id))}</b></div><b class="amt">${money(p.monto)}</b>
-        ${DEMO || p.de === ME || p.para === ME ? `<button class="btn primary small" data-act="liquidar" data-de="${p.de}" data-para="${p.para}" data-monto="${p.monto}">Registrar pago</button>` : ''}</div>`).join('')
+        ${DEMO || p.de === ME || p.para === ME ? `<button class="btn primary small" data-act="liquidar" data-de="${p.de}" data-para="${p.para}" data-monto="${p.monto}"><i class="bi bi-cash-coin" aria-hidden="true"></i>${p.de === ME ? 'Pagar' : 'Registrar pago'}</button>` : ''}
+        ${(() => { const d = pendientesEntre(g.id, p.de, p.para); return d.pendientes.length ? `<div class="pago-desglose">${d.pendientes.map(i => `<span>${esc(i.g.concepto)} <b>${money(i.resta)}</b></span>`).join('')}${d.compensado > 0.009 ? `<span class="comp"><i class="bi bi-arrow-left-right" aria-hidden="true"></i> ya se descontaron ${money(d.compensado)} que ${p.para === ME ? 'tú le debías' : esc(aliasDe(p.para, g.id)) + ' te debía'}</span>` : ''}</div>` : ''; })()}</div>`).join('')
         : vacio('Nadie le debe a nadie en este grupo.', null, null, 'check2-circle', 'Están a mano', 'ok')}</div>
       <p class="small muted" style="margin-top:10px">Se calcula con los gastos compartidos y los pagos entre ustedes. Adjunta el comprobante de la transferencia como evidencia.</p>
       <button class="btn ghost small" data-act="liquidar"><i class="bi bi-plus-lg" aria-hidden="true"></i>Otro pago entre compañeros</button>
@@ -1182,9 +1294,9 @@ function vGrupo() {
 
   <div class="section" id="t-gastos-comp"><div class="section-head"><h2>Gastos compartidos · ${MESES[sm.getMonth()]}</h2><span class="muted small">Total ${money(sum(delMes))} · tu parte ${money(delMes.reduce((s, x) => s + miParte(x), 0))}</span></div>
     <div class="list">${gastosG.slice(0, 30).map(x => `
-      <button class="item" data-act="edit" data-t="gastos" data-id="${x.id}"><div class="main"><b>${esc(x.concepto)}</b>
-        <small>${fLarga(x.fecha)} · pagó ${esc(aliasDe(x.pagado_por || x.user_id, g.id))} · entre ${participantesDe(x).length} · tu parte ${money(miParte(x))}${clip('gastos', x.id)}</small></div>
-        <span class="amt">${money(x.monto)}</span></button>`).join('') || vacio('Súper, luz, gas, garrafones… registra quién pagó y se divide solo.', 'gastos', g.id, null, 'Sin gastos compartidos')}
+      <div class="item" data-act="edit" data-t="gastos" data-id="${x.id}" role="button" tabindex="0"><div class="main"><b>${esc(x.concepto)}</b>
+        <small>${fLarga(x.fecha)} · pagó ${esc(aliasDe(x.pagado_por || x.user_id, g.id))} · entre ${participantesDe(x).length} · tu parte ${money(miParte(x))}${clip('gastos', x.id)}</small>${estadoGasto(x)}</div>
+        <span class="amt">${money(x.monto)}</span></div>`).join('') || vacio('Súper, luz, gas, garrafones… registra quién pagó y se divide solo.', 'gastos', g.id, null, 'Sin gastos compartidos')}
     ${gastosG.length ? `<button class="btn ghost small" data-act="nuevo" data-t="gastos" data-g="${g.id}"><i class="bi bi-plus-lg" aria-hidden="true"></i>Gasto compartido</button>` : ''}</div></div>
 
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2 section">
@@ -1207,6 +1319,21 @@ function vGrupo() {
       <span class="amt pos">${money(l.monto)}</span></button>`).join('') || vacio('Cuando alguien le transfiera a otro, regístralo con su comprobante.', null, null, 'cash-coin', 'Sin pagos entre ustedes')}</div></div>
 
   <div class="section actions"><button class="btn ghost small" data-act="crear-grupo"><i class="bi bi-plus-lg" aria-hidden="true"></i>Crear otro grupo</button><button class="btn ghost small" data-act="unirse-grupo">Unirme a otro grupo</button></div>`;
+}
+
+// Etiqueta "pagado / debes / te deben" de un gasto compartido
+function estadoGasto(x) {
+  const quien = x.pagado_por || x.user_id, ps = participantesDe(x);
+  if (quien !== ME) {
+    const r = restaDe(x, ME); if (!r) return '';
+    if (r.resta <= 0.009) return r.compensado > 0.009 && r.pagado < 0.009 ? '<span class="estado-chip ok"><i class="bi bi-arrow-left-right" aria-hidden="true"></i>Compensado con lo que te deben</span>' : '<span class="estado-chip ok"><i class="bi bi-check-circle-fill" aria-hidden="true"></i>Tu parte ya está pagada</span>';
+    return `<span class="estado-acciones"><span class="estado-chip debe"><i class="bi bi-hourglass-split" aria-hidden="true"></i>${r.pagado > 0.009 ? 'Te falta' : 'Debes'} ${money(r.resta)}</span><button class="btn primary small" data-act="pagar-gasto" data-id="${x.id}"><i class="bi bi-cash-coin" aria-hidden="true"></i>Pagar esto</button></span>`;
+  }
+  const otros = ps.filter(u => u !== ME); if (!otros.length) return '';
+  const falta = otros.reduce((a, u) => a + (restaDe(x, u)?.resta || 0), 0);
+  const comp = otros.some(u => (restaDe(x, u)?.compensado || 0) > 0.009);
+  return falta <= 0.009 ? `<span class="estado-chip ok"><i class="bi bi-${comp ? 'arrow-left-right' : 'check-circle-fill'}" aria-hidden="true"></i>${comp ? 'Compensado con lo que debías' : 'Ya te pagaron'}</span>`
+    : `<span class="estado-chip espera"><i class="bi bi-hourglass-split" aria-hidden="true"></i>Te deben ${money(falta)}</span>`;
 }
 
 const VISTAS = { resumen: vResumen, movimientos: vMovimientos, deudas: vDeudas, fijos: vFijos, metas: vMetas, agenda: vAgenda, grupo: vGrupo };
@@ -1252,6 +1379,10 @@ $('#tabs').addEventListener('click', e => {
   const b = e.target.closest('button[data-tab]'); if (!b) return;
   if (b.dataset.tab === tab) return;
   tab = b.dataset.tab; render(true); window.scrollTo({ top: 0, behavior: sinMovimiento() ? 'auto' : 'smooth' });
+});
+// Filas que son "botón" pero contienen otros botones: también se abren con Enter / espacio
+$('#view').addEventListener('keydown', e => {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.matches('[role=button][data-act]')) { e.preventDefault(); e.target.click(); }
 });
 $('#view').addEventListener('click', async e => {
   const b = e.target.closest('[data-act]'); if (!b) return;
@@ -1323,6 +1454,12 @@ $('#view').addEventListener('click', async e => {
           lsSet('liquidaciones', lsGet('liquidaciones').filter(l => l.grupo_id !== g.id));
         }
         grupoSel = null; await refrescar(); toast('Saliste del grupo');
+        break;
+      }
+      case 'pagar-gasto': {
+        e.stopPropagation();
+        const x = rawRow('gastos', id); if (!x) break;
+        abrirForm('liquidaciones', null, { titulo: 'Pagar ' + x.concepto, pre: { grupo_id: x.grupo_id, de: ME, para: x.pagado_por || x.user_id, cubre: [x.id] } });
         break;
       }
       case 'liquidar':
