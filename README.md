@@ -181,7 +181,7 @@ La primera vez que entras aparece un recorrido por todas las secciones. Después
 ## Versión
 La versión está en `package.json` (`"version"`) y es la misma para la web y la app. Se ve abajo del login y al final de cada sección (p. ej. *Mis Finanzas v1.2.0 · Web* o *· App Android*; en la app también el número de compilación). Para publicar una versión nueva, súbela en `package.json` antes de hacer push.
 
-Última versión: **v1.5.1** — los cuadros vacíos ya muestran su borde completo (antes se perdía el de abajo).
+Última versión: **v1.6.0** — botón de modo claro/oscuro en el encabezado (si no lo tocas, sigue el modo del sistema; tu elección se guarda).
 
 ## Editar el diseño (Tailwind CSS)
 La página usa `css/app.css`, que se genera desde `src/app.css` con Tailwind. Si cambias clases en `index.html` o `app.js`, o estilos en `src/app.css`, recompila:
