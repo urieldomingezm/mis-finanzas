@@ -615,7 +615,7 @@
 .list { gap: 0; overflow: hidden; border-radius: 18px; background: var(--surface); border: 1px solid var(--line); }
 .list:has(> .empty:only-child) { overflow: visible; border: 0; border-radius: 0; background: none; }
 .list > .item, .list > .fuga, .list > .pago-sug { border: 0; border-radius: 0; border-bottom: 1px solid var(--line); background: transparent; }
-.list > :last-child { border-bottom: 0; }
+.list > :last-child:not(.empty) { border-bottom: 0; }
 .item { padding: .8rem 1rem; transition: background-color .15s; }
 .item:hover, .card.clickable:hover { transform: none; box-shadow: none; }
 .item:hover { background: var(--surface-2); }
